@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin</title>
+<link rel="preconnect" href="https://fjqqywzddxzgrbbmwcmd.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" href="logo.png" as="image">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView" class="wrap login hide">
+  <div class="card stack">
+    <img src="logo.png" alt="" class="loginlogo">
+    <h2 style="text-align:center">Admin login</h2>
+    <input id="email" placeholder="Email / username" autocomplete="username" autocapitalize="none">
+    <input id="pass" type="password" placeholder="Password" autocomplete="current-password">
+    <div id="loginErr" style="color:var(--tomato)"></div>
+    <button id="loginBtn">Login</button>
+    <a href="index.html" style="color:var(--basil);font-weight:600">Go to billing</a>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="hide">
+  <header class="top"><div class="wrap">
+    <h1 id="shop"></h1>
+    <nav class="tabs">
+      <button data-tab="dash" class="on">Dashboard</button>
+      <button data-tab="bills">Bills</button>
+      <button data-tab="tables">Tables</button>
+      <button data-tab="items">Items</button>
+      <button data-tab="deals">Deals</button>
+      <button data-tab="users">Users</button>
+      <button id="toBilling">Billing screen</button>
+      <button id="logout">Logout</button>
+    </nav>
+  </div></header>
+
+  <main class="wrap">
+    <!-- DASHBOARD -->
+    <section id="tab-dash">
+      <div class="card inline">
+        <select id="dType"><option value="daily">Daily</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+        <input id="dDate" type="date"><input id="dMonth" type="month" class="hide"><input id="dYear" type="number" class="hide" style="width:100px">
+        <select id="dUser"><option value="">All users</option></select>
+        <select id="dOt"><option value="">All types</option><option value="takeaway">Take Away</option><option value="delivery">Delivery</option><option value="dine_in">Dine-in</option></select>
+        <button id="dGo">Show</button>
+        <button class="ghost" id="dXls" style="margin-left:auto">Download Excel</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="card tblw"><h3 style="margin-bottom:6px">Sales by user</h3>
+        <table><thead><tr><th>User</th><th>Bills</th><th>Discount</th><th>Sale</th></tr></thead><tbody id="byUser"></tbody></table>
+      </div>
+      <div class="card" style="margin-top:14px"><h3 style="margin-bottom:6px">Sales</h3><div class="bars" id="bars"></div><div class="blab" id="blab"></div></div>
+      <div class="card" style="margin-top:14px"><h3 style="margin-bottom:6px">Top items</h3><div id="top"></div></div>
+      <div class="card tblw" style="margin-top:14px">
+        <h3 style="margin-bottom:6px">Bills in this period</h3>
+        <table><thead><tr><th>Bill ID</th><th>Time</th><th>User</th><th>Customer</th><th>Type</th><th>Payment</th><th>Total</th><th></th></tr></thead>
+        <tbody id="ordersTbl"></tbody></table>
+      </div>
+    </section>
+
+    <!-- BILLS -->
+    <section id="tab-bills" class="hide">
+      <div class="card inline">
+        <input id="bq" placeholder="Bill ID (NM-000012 / 12) ya customer / user ka naam" style="flex:1;min-width:240px">
+        <button id="bGo">Search</button>
+        <button class="ghost" id="bAll">Latest 50</button>
+      </div>
+      <div id="billDetail"></div>
+      <div class="card tblw" style="margin-top:14px">
+        <table><thead><tr><th>Bill ID</th><th>Time</th><th>User</th><th>Customer</th><th>Type</th><th>Total</th><th></th></tr></thead>
+        <tbody id="billsTbl"></tbody></table>
+      </div>
+    </section>
+
+    <!-- TABLES -->
+    <section id="tab-tables" class="hide">
+      <div class="card stack">
+        <h3>Add tables</h3>
+        <div class="inline">
+          <input id="ntName" placeholder="Table name (e.g. Table 1, VIP)" style="min-width:220px">
+          <button id="addTableBtn">Add table</button>
+        </div>
+        <div class="inline">
+          <input id="ntCount" type="number" min="1" max="50" placeholder="Kitni tables" style="width:130px">
+          <button class="ghost" id="addManyBtn">Add many (Table 1, Table 2, ...)</button>
+        </div>
+      </div>
+      <div class="card tblw" style="margin-top:14px">
+        <table><thead><tr><th>Name</th><th>Status</th><th>Active</th><th></th></tr></thead>
+        <tbody id="tablesTbl"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ITEMS -->
+    <section id="tab-items" class="hide">
+      <div class="card stack">
+        <h3>Categories</h3>
+        <div class="inline" id="catList"></div>
+        <div class="inline"><input id="newCat" placeholder="New category (e.g. Fries)"><button id="addCatBtn">Add category</button></div>
+      </div>
+      <div class="card stack" style="margin-top:14px">
+        <h3>Add item</h3>
+        <div class="inline">
+          <input id="niName" placeholder="Item name" style="flex:2;min-width:160px">
+          <input id="niPrice" type="number" placeholder="Price" style="width:110px">
+          <select id="niCat"></select>
+          <button id="addItemBtn">Add item</button>
+        </div>
+      </div>
+      <div class="card tblw" style="margin-top:14px">
+        <table><thead><tr><th>Name</th><th style="width:110px">Price</th><th style="width:160px">Category</th><th>Show</th><th></th></tr></thead>
+        <tbody id="itemsTbl"></tbody></table>
+      </div>
+    </section>
+
+    <!-- DEALS -->
+    <section id="tab-deals" class="hide">
+      <div class="card stack">
+        <h3>Add deal</h3>
+        <div class="inline">
+          <input id="ndTitle" placeholder="Title (Deal 3)" style="width:160px">
+          <input id="ndDesc" placeholder="Kya kya shamil hai" style="flex:2;min-width:180px">
+          <input id="ndPrice" type="number" placeholder="Price" style="width:110px">
+          <button id="addDealBtn">Add deal</button>
+        </div>
+      </div>
+      <div class="card tblw" style="margin-top:14px">
+        <table><thead><tr><th style="width:160px">Title</th><th>Details</th><th style="width:110px">Price</th><th>Show</th><th></th></tr></thead>
+        <tbody id="dealsTbl"></tbody></table>
+      </div>
+    </section>
+
+    <!-- USERS -->
+    <section id="tab-users" class="hide">
+      <div class="card stack">
+        <h3>Create user</h3>
+        <div class="inline">
+          <input id="nuName" placeholder="Name (bill par ayega)" style="min-width:160px">
+          <input id="nuUser" placeholder="Username (e.g. counter1)" autocapitalize="none" style="min-width:160px">
+          <input id="nuPass" type="text" placeholder="Password (min 6)" style="min-width:150px">
+          <select id="nuRole"><option value="cashier">Cashier</option><option value="admin">Admin</option></select>
+          <button id="addUserBtn">Create user</button>
+        </div>
+        <small style="color:var(--muted)">Ye user billing screen par (main page) username aur password se login karega.</small>
+      </div>
+      <div class="card tblw" style="margin-top:14px">
+        <table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Active</th><th></th></tr></thead>
+        <tbody id="usersTbl"></tbody></table>
+      </div>
+    </section>
+
+    <div id="denied" class="card hide"><h3>Access denied</h3><p>Ye account admin nahi hai. Billing screen use karen.</p><button id="deniedGo">Go to billing</button></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const S = { cats: [], items: [], deals: [], users: [], orders: [], list: [], range: '', me: null };
+const TABS = ['dash', 'bills', 'tables', 'items', 'deals', 'users'];
+document.title = CFG.SHOP_NAME + ' Admin';
+$('#shop').textContent = CFG.SHOP_NAME + ' Admin';
+
+/* ---------- auth ---------- */
+async function boot() {
+  const { session, profile } = await myProfile();
+  if (!session) return showLogin();
+  $('#loginView').classList.add('hide'); $('#appView').classList.remove('hide');
+  if (!profile || profile.role !== 'admin' || !profile.active) {
+    TABS.forEach(t => $('#tab-' + t).classList.add('hide')); $('#denied').classList.remove('hide'); return;
+  }
+  S.me = profile;
+  $('#denied').classList.add('hide');
+  showTab('dash');
+  initDash();
+  await Promise.all([loadMenu(), loadUsers(), loadTablesAdmin(), loadDash()]);   // sab ek sath
+}
+function showLogin(msg) {
+  $('#appView').classList.add('hide'); $('#loginView').classList.remove('hide');
+  $('#loginErr').textContent = msg || '';
+}
+$('#loginBtn').onclick = async () => {
+  const { error } = await signIn($('#email').value, $('#pass').value);
+  if (error) return showLogin('Email ya password ghalat hai');
+  $('#pass').value = ''; boot();
+};
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+$('#logout').onclick = async () => { await sb.auth.signOut(); showLogin(); };
+$('#toBilling').onclick = () => location.href = 'index.html';
+$('#deniedGo').onclick = () => location.href = 'index.html';
+
+function showTab(t) {
+  document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
+  TABS.forEach(x => $('#tab-' + x).classList.toggle('hide', x !== t));
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { showTab(b.dataset.tab); if (b.dataset.tab === 'dash') loadDash(); if (b.dataset.tab === 'bills' && !S.list.length) loadBills(); });
+
+/* ---------- menu data ---------- */
+async function loadMenu(all = true) {
+  const [c, i, d] = await Promise.all([
+    sb.from('categories').select('*').order('sort').order('id'),
+    sb.from('items').select('*').order('id'),
+    sb.from('deals').select('*').order('sort').order('id')
+  ]);
+  if (c.error || i.error || d.error) return toast((c.error || i.error || d.error).message, true);
+  S.cats = c.data; S.items = i.data; S.deals = d.data;
+  if (all) { renderItemsTab(); renderDealsTab(); }
+}
+async function upd(table, id, field, val) {
+  if (field === 'price') val = Number(val) || 0;
+  const { error } = await sb.from(table).update({ [field]: val }).eq('id', id);
+  if (error) return toast(error.message, true);
+  toast('Saved'); loadMenu(false);
+}
+async function del(table, id) {
+  if (!confirm('Delete karna hai?')) return;
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (error) return toast(error.message, true);
+  loadMenu(true);
+}
+
+/* ---------- items ---------- */
+function renderItemsTab() {
+  $('#catList').innerHTML = S.cats.map(c => `<span class="chips" style="margin:0"><button class="c on" style="${catStyle(c.id)}">${esc(c.name)}</button><button class="danger q" onclick="del('categories',${c.id})">x</button></span>`).join('') || '<span class="empty">Pehle category banayen.</span>';
+  $('#niCat').innerHTML = S.cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('#itemsTbl').innerHTML = S.items.map(i => `<tr>
+    <td><input value="${esc(i.name)}" style="font-weight:700" onchange="upd('items',${i.id},'name',this.value)"></td>
+    <td><input type="number" value="${i.price}" onchange="upd('items',${i.id},'price',this.value)"></td>
+    <td><select onchange="upd('items',${i.id},'category_id',Number(this.value))">${S.cats.map(c => `<option value="${c.id}" ${c.id === i.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></td>
+    <td><input type="checkbox" ${i.active ? 'checked' : ''} onchange="upd('items',${i.id},'active',this.checked)"></td>
+    <td><button class="danger" onclick="del('items',${i.id})">Delete</button></td></tr>`).join('');
+}
+$('#addCatBtn').onclick = async () => {
+  const name = $('#newCat').value.trim(); if (!name) return;
+  const { error } = await sb.from('categories').insert({ name, sort: S.cats.length + 1 });
+  if (error) return toast(error.message, true);
+  $('#newCat').value = ''; loadMenu(true);
+};
+$('#addItemBtn').onclick = async () => {
+  const name = $('#niName').value.trim();
+  if (!name || !$('#niCat').value) return toast('Name aur category zaroori hai', true);
+  const { error } = await sb.from('items').insert({ name, price: Number($('#niPrice').value) || 0, category_id: Number($('#niCat').value) });
+  if (error) return toast(error.message, true);
+  $('#niName').value = ''; $('#niPrice').value = ''; loadMenu(true); toast('Item added');
+};
+
+/* ---------- deals ---------- */
+function renderDealsTab() {
+  $('#dealsTbl').innerHTML = S.deals.map(d => `<tr>
+    <td><input value="${esc(d.title)}" style="font-weight:700" onchange="upd('deals',${d.id},'title',this.value)"></td>
+    <td><input value="${esc(d.description)}" onchange="upd('deals',${d.id},'description',this.value)"></td>
+    <td><input type="number" value="${d.price}" onchange="upd('deals',${d.id},'price',this.value)"></td>
+    <td><input type="checkbox" ${d.active ? 'checked' : ''} onchange="upd('deals',${d.id},'active',this.checked)"></td>
+    <td><button class="danger" onclick="del('deals',${d.id})">Delete</button></td></tr>`).join('');
+}
+$('#addDealBtn').onclick = async () => {
+  const title = $('#ndTitle').value.trim(); if (!title) return toast('Title likhen', true);
+  const { error } = await sb.from('deals').insert({ title, description: $('#ndDesc').value, price: Number($('#ndPrice').value) || 0, sort: S.deals.length + 1 });
+  if (error) return toast(error.message, true);
+  ['#ndTitle', '#ndDesc', '#ndPrice'].forEach(s => $(s).value = ''); loadMenu(true); toast('Deal added');
+};
+
+/* ---------- users ---------- */
+async function callUsers(body) {
+  const { data, error } = await sb.functions.invoke('manage-users', { body });
+  if (error) {
+    let msg = error.message;
+    try { const j = await error.context.json(); msg = j.error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+async function loadUsers() {
+  const { data, error } = await sb.from('profiles').select('*').order('created_at');
+  if (error) return toast(error.message, true);
+  S.users = data;
+  $('#dUser').innerHTML = '<option value="">All users</option>' + data.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  $('#usersTbl').innerHTML = data.map(u => `<tr>
+    <td><input value="${esc(u.name)}" style="font-weight:700" onchange="updUser('${u.id}','name',this.value)"></td>
+    <td>${esc(u.username || '')}</td>
+    <td><span class="pill ${u.role === 'admin' ? 'adm' : ''}">${u.role}</span></td>
+    <td><input type="checkbox" ${u.active ? 'checked' : ''} ${u.id === S.me.id ? 'disabled' : ''} onchange="updUser('${u.id}','active',this.checked)"></td>
+    <td class="n"><button class="ghost" onclick="resetPass('${u.id}')">New password</button>
+      ${u.id === S.me.id ? '' : `<button class="danger" onclick="delUser('${u.id}')">Delete</button>`}</td></tr>`).join('');
+}
+async function updUser(id, field, val) {
+  if (field === 'name' && !val.trim()) return loadUsers();
+  const { error } = await sb.from('profiles').update({ [field]: val }).eq('id', id);
+  if (error) return toast(error.message, true);
+  toast('Saved'); loadUsers();
+}
+async function resetPass(id) {
+  const p = prompt('Naya password (kam az kam 6 characters):'); if (!p) return;
+  try { await callUsers({ action: 'set_password', user_id: id, password: p }); toast('Password changed'); }
+  catch (e) { toast(e.message, true); }
+}
+async function delUser(id) {
+  if (!confirm('User delete karna hai? Uske purane bills record me rahenge.')) return;
+  try { await callUsers({ action: 'delete', user_id: id }); toast('User deleted'); loadUsers(); }
+  catch (e) { toast(e.message, true); }
+}
+$('#addUserBtn').onclick = async () => {
+  const name = $('#nuName').value.trim();
+  let u = $('#nuUser').value.trim().toLowerCase();
+  const password = $('#nuPass').value;
+  if (!name || !u || !password) return toast('Name, username aur password likhen', true);
+  if (!u.includes('@') && !/^[a-z0-9._-]+$/.test(u)) return toast('Username me sirf english letters, numbers, . _ - allowed hain', true);
+  const btn = $('#addUserBtn'); btn.disabled = true;
+  try {
+    await callUsers({ action: 'create', email: toEmail(u), username: u, password, name, role: $('#nuRole').value });
+    ['#nuName', '#nuUser', '#nuPass'].forEach(s => $(s).value = '');
+    toast('User created'); loadUsers();
+  } catch (e) { toast(e.message, true); }
+  btn.disabled = false;
+};
+
+/* ---------- dashboard ---------- */
+function initDash() {
+  const n = new Date(), p = x => String(x).padStart(2, '0');
+  $('#dDate').value = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+  $('#dMonth').value = `${n.getFullYear()}-${p(n.getMonth() + 1)}`;
+  $('#dYear').value = n.getFullYear();
+}
+$('#dType').onchange = () => {
+  const t = $('#dType').value;
+  $('#dDate').classList.toggle('hide', t !== 'daily');
+  $('#dMonth').classList.toggle('hide', t !== 'monthly');
+  $('#dYear').classList.toggle('hide', t !== 'yearly');
+  loadDash();
+};
+$('#dGo').onclick = loadDash;
+['#dDate', '#dMonth', '#dYear', '#dUser', '#dOt'].forEach(s => $(s).onchange = loadDash);
+
+function getRange() {
+  const t = $('#dType').value; let a, b, label;
+  if (t === 'daily') { const [y, m, d] = $('#dDate').value.split('-').map(Number); a = new Date(y, m - 1, d); b = new Date(y, m - 1, d + 1); label = $('#dDate').value; }
+  else if (t === 'monthly') { const [y, m] = $('#dMonth').value.split('-').map(Number); a = new Date(y, m - 1, 1); b = new Date(y, m, 1); label = $('#dMonth').value; }
+  else { const y = Number($('#dYear').value); a = new Date(y, 0, 1); b = new Date(y + 1, 0, 1); label = String(y); }
+  return { t, a, b, label };
+}
+async function loadDash() {
+  const r = getRange(); if (isNaN(r.a)) return;
+  const uid = $('#dUser').value;
+  let all = [], from = 0;
+  while (true) {
+    let q = sb.from('orders').select('*').gte('created_at', r.a.toISOString()).lt('created_at', r.b.toISOString())
+      .order('created_at', { ascending: false }).range(from, from + 999);
+    if (uid) q = q.eq('cashier_id', uid);
+    if ($('#dOt').value) q = q.eq('order_type', $('#dOt').value);
+    const { data, error } = await q;
+    if (error) return toast(error.message, true);
+    all = all.concat(data); if (data.length < 1000) break; from += 1000;
+  }
+  S.orders = all; S.range = r.label + (uid ? '-' + (S.users.find(u => u.id === uid) || {}).name : '');
+  const total = all.reduce((s, o) => s + Number(o.total), 0);
+  const disc = all.reduce((s, o) => s + Number(o.discount), 0);
+  $('#stats').innerHTML = [['Total sale', money(total)], ['Bills', all.length], ['Average bill', money(all.length ? total / all.length : 0)], ['Discount given', money(disc)]]
+    .map(([k, v]) => `<div class="card stat"><span>${k}</span><b>${v}</b></div>`).join('');
+
+  // by user
+  const g = {};
+  all.forEach(o => { const k = o.cashier_name || 'Unknown'; g[k] = g[k] || { n: 0, d: 0, t: 0 }; g[k].n++; g[k].d += Number(o.discount); g[k].t += Number(o.total); });
+  S.byUser = Object.entries(g).sort((a, b) => b[1].t - a[1].t);
+  $('#byUser').innerHTML = S.byUser.length ? S.byUser.map(([n, v]) => `<tr><td><b>${esc(n)}</b></td><td>${v.n}</td><td>${money(v.d)}</td><td><b>${money(v.t)}</b></td></tr>`).join('')
+    : '<tr><td colspan="4" class="empty">Is period me koi sale nahi.</td></tr>';
+
+  // chart
+  let labels, sums;
+  if (r.t === 'daily') { labels = [...Array(24).keys()].map(String); sums = Array(24).fill(0); all.forEach(o => sums[new Date(o.created_at).getHours()] += Number(o.total)); }
+  else if (r.t === 'monthly') { const n = new Date(r.a.getFullYear(), r.a.getMonth() + 1, 0).getDate(); labels = [...Array(n).keys()].map(i => String(i + 1)); sums = Array(n).fill(0); all.forEach(o => sums[new Date(o.created_at).getDate() - 1] += Number(o.total)); }
+  else { labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; sums = Array(12).fill(0); all.forEach(o => sums[new Date(o.created_at).getMonth()] += Number(o.total)); }
+  const max = Math.max(...sums, 1);
+  $('#bars').innerHTML = sums.map((v, i) => `<div style="height:${v / max * 100}%" title="${labels[i]}: ${money(v)}"></div>`).join('');
+  $('#blab').innerHTML = labels.map(l => `<span>${l}</span>`).join('');
+
+  // top items
+  const m = {};
+  all.forEach(o => o.lines.forEach(l => { m[l.name] = m[l.name] || { q: 0, a: 0 }; m[l.name].q += l.qty; m[l.name].a += l.qty * l.price; }));
+  const top = Object.entries(m).sort((a, b) => b[1].a - a[1].a).slice(0, 8);
+  $('#top').innerHTML = top.length ? `<table>${top.map(([n, v]) => `<tr><td><b>${esc(n)}</b></td><td>${v.q} sold</td><td class="n">${money(v.a)}</td></tr>`).join('')}</table>` : '<div class="empty">Is period me koi sale nahi.</div>';
+
+  // orders
+  $('#ordersTbl').innerHTML = all.map((o, i) => `<tr>
+    <td><b>${billId(o.order_no)}</b></td><td class="n">${new Date(o.created_at).toLocaleString('en-GB')}</td>
+    <td>${esc(o.cashier_name)}</td><td>${esc(o.customer_name)}</td><td>${esc(typeText(o))}</td><td>${esc(o.payment)}</td><td class="n"><b>${money(o.total)}</b></td>
+    <td class="n"><button class="ghost" onclick="viewBill(S.orders[${i}])">View</button> <button class="ghost" onclick="printReceipt(S.orders[${i}])">Print</button></td></tr>`).join('');
+}
+$('#dXls').onclick = () => {
+  if (!S.orders.length) return toast('Download ke liye koi data nahi', true);
+  const rows = S.orders.map(o => ({
+    'Bill ID': billId(o.order_no), 'Date': new Date(o.created_at).toLocaleString('en-GB'),
+    'User': o.cashier_name, 'Customer': o.customer_name, 'Type': typeText(o),
+    'Items': o.lines.map(l => `${l.name} x${l.qty}`).join(', '),
+    'Subtotal': Number(o.subtotal), 'Discount': Number(o.discount), 'Total': Number(o.total), 'Payment': o.payment, 'Note': o.note
+  }));
+  const items = {};
+  S.orders.forEach(o => o.lines.forEach(l => { items[l.name] = items[l.name] || { Item: l.name, Qty: 0, Amount: 0 }; items[l.name].Qty += l.qty; items[l.name].Amount += l.qty * l.price; }));
+  const users = (S.byUser || []).map(([n, v]) => ({ User: n, Bills: v.n, Discount: v.d, Sale: v.t }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Bills');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(users), 'By user');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.values(items)), 'Items summary');
+  XLSX.writeFile(wb, `sales-${S.range}.xlsx`);
+};
+
+/* ---------- bills (search by Bill ID) ---------- */
+async function loadBills(q) {
+  let req = sb.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+  if (q) {
+    if (/^\s*(?:[A-Za-z]+-?)?\d+\s*$/.test(q)) req = sb.from('orders').select('*').eq('order_no', Number(q.match(/(\d+)\s*$/)[1]));
+    else { const s = q.replace(/[,()%*]/g, ' ').trim(); req = sb.from('orders').select('*').or(`customer_name.ilike.%${s}%,cashier_name.ilike.%${s}%`).order('created_at', { ascending: false }).limit(50); }
+  }
+  const { data, error } = await req;
+  if (error) return toast(error.message, true);
+  S.list = data;
+  $('#billDetail').innerHTML = '';
+  if (q && data.length === 1) viewBill(data[0], true);
+  $('#billsTbl').innerHTML = data.length ? data.map((o, i) => `<tr>
+    <td><b>${billId(o.order_no)}</b></td><td class="n">${new Date(o.created_at).toLocaleString('en-GB')}</td>
+    <td>${esc(o.cashier_name)}</td><td>${esc(o.customer_name)}</td><td>${esc(typeText(o))}</td><td class="n"><b>${money(o.total)}</b></td>
+    <td class="n"><button class="ghost" onclick="viewBill(S.list[${i}],true)">View</button></td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty">Koi bill nahi mila.</td></tr>';
+}
+$('#bGo').onclick = () => loadBills($('#bq').value.trim());
+$('#bAll').onclick = () => { $('#bq').value = ''; loadBills(); };
+$('#bq').addEventListener('keydown', e => { if (e.key === 'Enter') $('#bGo').click(); });
+
+function viewBill(o, stay) {
+  S.cur = o;
+  if (!stay) showTab('bills');
+  $('#billDetail').innerHTML = `<div class="card" style="margin-top:14px">
+    <h3>Bill ${billId(o.order_no)}</h3>
+    <div class="detail">
+      <div><span>Date &amp; time</span><b>${new Date(o.created_at).toLocaleString('en-GB')}</b></div>
+      <div><span>User</span><b>${esc(o.cashier_name)}</b></div>
+      <div><span>Customer</span><b>${esc(o.customer_name)}</b></div>
+      <div><span>Type</span><b>${esc(typeText(o))}</b></div>
+      <div><span>Payment</span><b>${esc(o.payment)}</b></div>
+      ${o.note ? `<div><span>Note</span><b>${esc(o.note)}</b></div>` : ''}
+    </div>
+    <table><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>
+      ${o.lines.map(l => `<tr><td><b>${esc(l.name)}</b></td><td>${l.qty}</td><td>${fmt(l.price)}</td><td>${fmt(l.qty * l.price)}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="tot"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    <div class="tot"><span>Discount</span><span>${money(o.discount)}</span></div>
+    <div class="tot big"><span>Total</span><span>${money(o.total)}</span></div>
+    <div class="inline" style="margin-top:10px"><button class="ghost" onclick="viewReceipt(S.cur)">View receipt</button><button onclick="printReceipt(S.cur)">Print</button><button class="danger" onclick="delBill(${o.id})">Delete bill</button></div>
+  </div>`;
+  $('#billDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function delBill(id) {
+  if (!confirm('Ye bill hamesha ke liye delete ho jayega. Pakka?')) return;
+  const { error } = await sb.from('orders').delete().eq('id', id);
+  if (error) return toast(error.message, true);
+  toast('Bill deleted'); $('#billDetail').innerHTML = ''; loadBills($('#bq').value.trim()); loadDash();
+}
+
+/* ---------- tables ---------- */
+async function loadTablesAdmin() {
+  const [t, o] = await Promise.all([
+    sb.from('dining_tables').select('*').order('sort').order('id'),
+    sb.from('table_orders').select('*')
+  ]);
+  if (t.error || o.error) return toast((t.error || o.error).message, true);
+  S.tbl = t.data;
+  $('#tablesTbl').innerHTML = t.data.map(x => {
+    const r = o.data.find(y => y.table_id === x.id), busy = r && (r.lines || []).length;
+    const total = busy ? r.lines.reduce((s, l) => s + l.price * l.qty, 0) - Number(r.discount || 0) : 0;
+    return `<tr>
+      <td><input value="${esc(x.name)}" style="font-weight:700" onchange="updTable(${x.id},'name',this.value)"></td>
+      <td>${busy ? `<span class="pill busy">Occupied ${money(total)}</span>` : '<span class="pill">Free</span>'}</td>
+      <td><input type="checkbox" ${x.active ? 'checked' : ''} onchange="updTable(${x.id},'active',this.checked)"></td>
+      <td class="n">${busy ? `<button class="ghost" onclick="clearTable(${x.id})">Clear order</button> ` : ''}<button class="danger" onclick="delTable(${x.id},${busy ? 1 : 0})">Delete</button></td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="empty">Abhi koi table nahi. Upar se add karen.</td></tr>';
+}
+async function updTable(id, field, val) {
+  if (field === 'name' && !val.trim()) return loadTablesAdmin();
+  const { error } = await sb.from('dining_tables').update({ [field]: field === 'name' ? val.trim() : val }).eq('id', id);
+  if (error) toast(error.message.includes('duplicate') ? 'Ye naam pehle se mojood hai' : error.message, true); else toast('Saved');
+  loadTablesAdmin();
+}
+async function addTables(names) {
+  const base = (S.tbl || []).length;
+  const { error } = await sb.from('dining_tables').insert(names.map((name, i) => ({ name, sort: base + i + 1 })));
+  if (error) return toast(error.message.includes('duplicate') ? 'Ye naam pehle se mojood hai' : error.message, true);
+  toast(names.length + ' table(s) added'); loadTablesAdmin();
+}
+$('#addTableBtn').onclick = async () => {
+  const n = $('#ntName').value.trim(); if (!n) return toast('Table ka naam likhen', true);
+  await addTables([n]); $('#ntName').value = '';
+};
+$('#addManyBtn').onclick = async () => {
+  const n = Math.min(50, Math.max(1, Number($('#ntCount').value) || 0)); if (!$('#ntCount').value) return toast('Tables ki tadad likhen', true);
+  const nums = (S.tbl || []).map(x => (x.name.match(/^Table\s+(\d+)$/i) || [])[1]).filter(Boolean).map(Number);
+  const start = (nums.length ? Math.max(...nums) : 0) + 1;
+  await addTables([...Array(n).keys()].map(i => 'Table ' + (start + i)));
+  $('#ntCount').value = '';
+};
+async function clearTable(id) {
+  if (!confirm('Is table ka open order clear karna hai?')) return;
+  const { error } = await sb.from('table_orders').delete().eq('table_id', id);
+  if (error) return toast(error.message, true);
+  loadTablesAdmin();
+}
+async function delTable(id, busy) {
+  if (!confirm(busy ? 'Is table par order chal raha hai. Phir bhi delete karna hai?' : 'Table delete karni hai?')) return;
+  await sb.from('table_orders').delete().eq('table_id', id);
+  const { error } = await sb.from('dining_tables').delete().eq('id', id);
+  if (error) return toast(error.message, true);
+  loadTablesAdmin();
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Billing</title>
+<link rel="preconnect" href="https://fjqqywzddxzgrbbmwcmd.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" href="logo.png" as="image">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView" class="wrap login hide">
+  <div class="card stack">
+    <img src="logo.png" alt="" class="loginlogo">
+    <h2 id="loginShop" style="text-align:center"></h2>
+    <div>Billing login</div>
+    <input id="user" placeholder="Username" autocomplete="username" autocapitalize="none">
+    <input id="pass" type="password" placeholder="Password" autocomplete="current-password">
+    <div id="loginErr" style="color:var(--tomato)"></div>
+    <button id="loginBtn">Login</button>
+    <a href="admin.html" style="color:var(--basil);font-weight:600">Go to admin panel</a>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="hide">
+  <header class="top"><div class="wrap">
+    <div><h1 id="shop"></h1><small id="addr"></small></div>
+    <nav class="tabs">
+      <span class="who" id="who"></span>
+      <button data-tab="billing" class="on">Billing</button>
+      <button data-tab="tables">Tables</button>
+      <button data-tab="bills">My bills</button>
+      <button id="adminLink" class="hide">Admin panel</button>
+      <button id="logout">Logout</button>
+    </nav>
+  </div></header>
+
+  <main class="wrap">
+    <!-- BILLING -->
+    <section id="tab-billing" class="bill">
+      <div>
+        <div class="chips" id="chips"></div>
+        <div id="dealsBox"></div>
+        <div id="itemsBox"></div>
+      </div>
+      <aside class="card cart">
+        <h3 style="margin-bottom:8px">Current bill</h3>
+        <div class="seg" id="typeSeg">
+          <button data-t="takeaway" class="on">Take Away</button>
+          <button data-t="delivery">Delivery</button>
+        </div>
+        <div class="tbar hide" id="tableBar">
+          <div><small>Dine-in</small><br><b id="tableName"></b> <small id="saveState"></small></div>
+          <button class="ghost" id="backTables">Tables</button>
+        </div>
+        <div class="meta"><span>Cashier</span><b id="cashier"></b></div>
+        <div class="tot"><span>Customer</span><input id="cust" style="width:180px;text-align:right" maxlength="60"></div>
+        <div id="cartLines"></div>
+        <button class="ghost" id="addCustom" style="margin:10px 0">+ Custom item</button>
+        <div class="tot"><span>Subtotal</span><span id="sub">0</span></div>
+        <div class="tot"><span>Discount</span><span class="inline" style="flex-wrap:nowrap"><button class="ghost" id="memberBtn" style="padding:7px 10px">Member 30%</button><input id="disc" type="number" min="0" value="0" style="width:100px;text-align:right"></span></div>
+        <div class="tot big"><span>Total</span><span id="grand">0</span></div>
+        <div class="stack" style="margin-top:10px">
+          <div class="inline">
+            <select id="pay"><option>Cash</option><option>Card</option><option>Online</option></select>
+            <input id="note" placeholder="Note" style="flex:1">
+          </div>
+          <button class="ghost" id="previewBtn">Preview bill</button>
+          <button id="saveBtn">Save &amp; print</button>
+          <button class="ghost" id="clearBtn">Clear bill</button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- TABLES -->
+    <section id="tab-tables" class="hide">
+      <div class="card inline">
+        <h3>Tables</h3>
+        <small style="color:var(--muted)">Table par click karke items add karen. Final bill par print hote hi table free ho jati hai.</small>
+        <button class="ghost" id="tRefresh" style="margin-left:auto">Refresh</button>
+      </div>
+      <div class="tgrid" id="tgrid"></div>
+    </section>
+
+    <!-- MY BILLS -->
+    <section id="tab-bills" class="hide">
+      <div class="card inline">
+        <input id="bq" placeholder="Bill ID (e.g. NM-000012 ya 12)" style="width:260px">
+        <button id="bGo">Search</button>
+        <button class="ghost" id="bAll">Show latest</button>
+      </div>
+      <div class="card tblw" style="margin-top:14px">
+        <table><thead><tr><th>Bill ID</th><th>Time</th><th>Type</th><th>Customer</th><th>Items</th><th>Total</th><th></th></tr></thead>
+        <tbody id="billsTbl"></tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const S = { cats: [], items: [], deals: [], cart: [], cat: 'all', me: null, bills: [], type: 'takeaway',
+            table: null, hasRow: false, member: false, stash: null, tables: [], loading: false, timer: null, q: Promise.resolve() };
+document.title = CFG.SHOP_NAME + ' - Billing';
+$('#loginShop').textContent = CFG.SHOP_NAME;
+$('#shop').textContent = CFG.SHOP_NAME;
+$('#addr').textContent = [CFG.SHOP_ADDRESS, CFG.SHOP_PHONE].filter(Boolean).join('  |  ');
+$('#cust').placeholder = CFG.DEFAULT_CUSTOMER;
+
+/* ---------- auth ---------- */
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();      // local, network nahi
+  if (!session) return showLogin();
+  // menu aur profile ek sath (parallel) load hote hain; purana menu foran dikha dete hain
+  let cp = null;
+  try { cp = JSON.parse(localStorage.getItem(PROF_KEY) || 'null'); } catch (e) {}
+  if (cp && cp.id === session.user.id) showApp(cp);            // pehle se pata ho to app foran khol do
+  showCachedMenu();
+  const refresh = async () => {
+    const menuP = loadMenu();
+    const profile = await getProfile(session.user.id);         // phir server se confirm
+    if (!profile || !profile.active) {
+      localStorage.removeItem(PROF_KEY);
+      await sb.auth.signOut(); showLogin('Ye account active nahi hai. Admin se rabta karen.'); return;
+    }
+    try { localStorage.setItem(PROF_KEY, JSON.stringify(profile)); } catch (e) {}
+    showApp(profile);
+    await menuP;
+  };
+  if (cp) await quietly(refresh); else await refresh();       // app pehle se khula ho to spinner nahi
+}
+const PROF_KEY = 'nm_profile_v1';
+function showApp(profile) {
+  S.me = profile;
+  $('#loginView').classList.add('hide'); $('#appView').classList.remove('hide');
+  $('#who').textContent = 'User: ' + profile.name;
+  $('#cashier').textContent = profile.name;
+  $('#adminLink').classList.toggle('hide', profile.role !== 'admin');
+  renderMode();
+}
+function showLogin(msg) {
+  $('#appView').classList.add('hide'); $('#loginView').classList.remove('hide');
+  $('#loginErr').textContent = msg || '';
+}
+$('#loginBtn').onclick = async () => {
+  const u = $('#user').value.trim(), p = $('#pass').value;
+  if (!u || !p) return showLogin('Username aur password likhen');
+  const { error } = await signIn(u, p);
+  if (error) return showLogin('Username ya password ghalat hai');
+  $('#pass').value = ''; boot();
+};
+$('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+$('#logout').onclick = async () => {
+  if (S.table) await saveTable();
+  S.cart = []; S.table = null; S.stash = null; S.me = null;
+  localStorage.removeItem(PROF_KEY);
+  await sb.auth.signOut(); showLogin();
+};
+$('#adminLink').onclick = () => location.href = 'admin.html';
+
+/* ---------- tabs ---------- */
+const TABS = ['billing', 'tables', 'bills'];
+function switchTab(t) {
+  document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
+  TABS.forEach(x => $('#tab-' + x).classList.toggle('hide', x !== t));
+  if (t === 'tables') loadTables();
+  if (t === 'bills') loadBills();
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+setInterval(() => { if (S.me && document.visibilityState === 'visible' && !$('#tab-tables').classList.contains('hide') && !document.getElementById('modal')) quietly(loadTables); }, 10000);
+
+/* ---------- menu ---------- */
+const MENU_KEY = 'nm_menu_v1';
+function showCachedMenu() {
+  try {
+    const m = JSON.parse(localStorage.getItem(MENU_KEY) || 'null');
+    if (m) { S.cats = m.cats; S.items = m.items; S.deals = m.deals; renderMenu(); }
+  } catch (e) {}
+}
+async function loadMenu() {
+  const [c, i, d] = await Promise.all([
+    sb.from('categories').select('*').order('sort').order('id'),
+    sb.from('items').select('*').order('id'),
+    sb.from('deals').select('*').order('sort').order('id')
+  ]);
+  if (c.error || i.error || d.error) return toast((c.error || i.error || d.error).message, true);
+  const fresh = JSON.stringify({ cats: c.data, items: i.data, deals: d.data });
+  const changed = fresh !== JSON.stringify({ cats: S.cats, items: S.items, deals: S.deals });
+  S.cats = c.data; S.items = i.data; S.deals = d.data;
+  try { localStorage.setItem(MENU_KEY, fresh); } catch (e) {}
+  if (changed || !$('#itemsBox').innerHTML) renderMenu();
+}
+function renderMenu() {
+  $('#chips').innerHTML = `<button class="${S.cat === 'all' ? 'on' : ''}" onclick="S.cat='all';renderMenu()">All</button>` +
+    S.cats.map(c => `<button class="c ${S.cat == c.id ? 'on' : ''}" style="${catStyle(c.id)}" onclick="S.cat='${c.id}';renderMenu()">${esc(c.name)}</button>`).join('');
+  const deals = S.deals.filter(d => d.active);
+  $('#dealsBox').innerHTML = (S.cat === 'all' && deals.length) ? `<div class="sec">Deals</div><div class="grid">` +
+    deals.map(d => `<button class="deal sm" onclick="addLine('${jsq(d.title)}',${d.price})"><h3>${esc(d.title)}</h3><small>${esc(d.description)}</small><div class="p">${money(d.price)}</div></button>`).join('') + '</div>' : '';
+  const cats = S.cat === 'all' ? S.cats : S.cats.filter(c => c.id == S.cat);
+  $('#itemsBox').innerHTML = cats.map(c => {
+    const l = S.items.filter(i => i.category_id === c.id && i.active);
+    return l.length ? `<div class="sec"><b style="color:${PALETTE[c.id % PALETTE.length].bd}">${esc(c.name)}</b></div><div class="grid">` +
+      l.map(i => `<button class="tile" style="${catStyle(c.id)}" data-id="${i.id}">${esc(i.name)}<span>${money(i.price)}</span></button>`).join('') + '</div>' : '';
+  }).join('') || '<div class="empty">Abhi koi item nahi hai. Admin panel se items add karen.</div>';
+  document.querySelectorAll('.tile').forEach(b => b.onclick = () => {
+    const it = S.items.find(x => x.id == b.dataset.id); addLine(it.name, it.price);
+  });
+  renderCart();
+}
+
+/* ---------- order type / table mode ---------- */
+function renderMode() {
+  const tm = !!S.table;
+  $('#typeSeg').classList.toggle('hide', tm);
+  $('#tableBar').classList.toggle('hide', !tm);
+  if (tm) $('#tableName').textContent = S.table.name;
+  document.querySelectorAll('#typeSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === S.type));
+  $('#saveBtn').textContent = tm ? 'Final bill & print' : 'Save & print';
+  $('#clearBtn').textContent = tm ? 'Clear table' : 'Clear bill';
+  $('#note').placeholder = (!tm && S.type === 'delivery') ? 'Address / phone' : 'Note';
+}
+document.querySelectorAll('#typeSeg button').forEach(b => b.onclick = () => { S.type = b.dataset.t; renderMode(); });
+
+/* ---------- cart ---------- */
+function addLine(name, price) {
+  const ex = S.cart.find(l => l.name === name && l.price === Number(price));
+  if (ex) ex.qty++; else S.cart.push({ name, price: Number(price), qty: 1 });
+  renderCart();
+}
+function renderCart() {
+  $('#cartLines').innerHTML = S.cart.length ? S.cart.map((l, i) => `
+    <div class="line">
+      <input value="${esc(l.name)}" oninput="S.cart[${i}].name=this.value;dirty()">
+      <input type="number" min="0" value="${l.price}" oninput="S.cart[${i}].price=Number(this.value)||0;totals()">
+      <div class="row2">
+        <button class="q" onclick="qty(${i},-1)">-</button><b>${l.qty}</b><button class="q" onclick="qty(${i},1)">+</button>
+        <button class="danger q" onclick="S.cart.splice(${i},1);renderCart()">Remove</button>
+        <span class="amt" id="amt${i}">${money(l.price * l.qty)}</span>
+      </div>
+    </div>`).join('') : '<div class="empty">Item ya deal par click karen.</div>';
+  totals();
+}
+function qty(i, d) { S.cart[i].qty += d; if (S.cart[i].qty < 1) S.cart.splice(i, 1); renderCart(); }
+function calc() {
+  const subtotal = S.cart.reduce((s, l) => s + l.price * l.qty, 0);
+  const discount = Math.min(Number($('#disc').value) || 0, subtotal);
+  return { subtotal, discount, total: subtotal - discount };
+}
+/* Member card: 30% discount (Membership Card item par nahi lagta) */
+const memberDisc = () => Math.round(S.cart.filter(l => !/^membership card/i.test(l.name)).reduce((s, l) => s + l.price * l.qty, 0) * 0.3);
+const billNote = () => { const n = $('#note').value.trim(); return S.member ? 'Member 30%' + (n ? ' | ' + n : '') : n; };
+function syncMember() { $('#memberBtn').classList.toggle('on', S.member); }
+function totals() {
+  if (S.member) $('#disc').value = memberDisc();
+  const c = calc();
+  S.cart.forEach((l, i) => { const e = $('#amt' + i); if (e) e.textContent = money(l.price * l.qty); });
+  $('#sub').textContent = money(c.subtotal); $('#grand').textContent = money(c.total);
+  dirty();
+}
+$('#disc').oninput = () => { S.member = false; syncMember(); totals(); };   // haath se discount likhen to member mode band
+$('#memberBtn').onclick = () => {
+  S.member = !S.member;
+  if (!S.member) $('#disc').value = 0;
+  syncMember(); totals();
+};
+$('#cust').oninput = dirty;
+$('#note').oninput = dirty;
+$('#addCustom').onclick = () => { S.cart.push({ name: 'Custom item', price: 0, qty: 1 }); renderCart(); };
+function clearForm() { S.cart = []; S.member = false; syncMember(); $('#disc').value = 0; $('#note').value = ''; $('#cust').value = ''; renderCart(); }
+$('#clearBtn').onclick = async () => {
+  if (S.table) {
+    if (!S.cart.length || !confirm('Is table ka saara order clear karna hai?')) return;
+    clearForm(); await saveTable(); return;
+  }
+  clearForm();
+};
+
+function draft() {
+  const c = calc(), tm = !!S.table;
+  return { order_no: null, created_at: new Date().toISOString(), lines: S.cart, subtotal: c.subtotal, discount: c.discount, total: c.total,
+    payment: $('#pay').value, note: billNote(), customer_name: $('#cust').value.trim() || CFG.DEFAULT_CUSTOMER,
+    cashier_name: S.me.name, order_type: tm ? 'dine_in' : S.type, table_name: tm ? S.table.name : '' };
+}
+$('#previewBtn').onclick = () => { if (!S.cart.length) return toast('Bill khali hai', true); viewReceipt(draft()); };
+
+$('#saveBtn').onclick = async () => {
+  if (!S.cart.length) return toast('Bill khali hai', true);
+  const btn = $('#saveBtn'); btn.disabled = true;
+  const o = draft(), tm = !!S.table;
+  const { data, error } = await sb.from('orders').insert({
+    lines: o.lines, subtotal: o.subtotal, discount: o.discount, total: o.total, payment: o.payment, note: o.note,
+    customer_name: o.customer_name, cashier_id: S.me.id, cashier_name: S.me.name, order_type: o.order_type, table_name: o.table_name
+  }).select().single();
+  btn.disabled = false;
+  if (error) return toast(error.message, true);
+  toast('Saved: ' + billId(data.order_no));
+  if (tm) {
+    clearTimeout(S.timer);
+    await S.q;
+    const { error: e2 } = await sb.from('table_orders').delete().eq('table_id', S.table.id);
+    if (e2) toast('Bill save ho gaya, lekin table free nahi hui: ' + e2.message, true);
+    leaveTable(); switchTab('tables');
+  } else clearForm();
+  printReceipt(data);
+};
+
+/* ---------- tables ---------- */
+const tableTotal = t => (t.lines || []).reduce((s, l) => s + l.price * l.qty, 0) - Number(t.discount || 0);
+async function loadTables() {
+  const [t, o] = await Promise.all([
+    sb.from('dining_tables').select('*').eq('active', true).order('sort').order('id'),
+    sb.from('table_orders').select('*')
+  ]);
+  if (t.error || o.error) return toast((t.error || o.error).message, true);
+  S.tables = t.data.map(x => ({ ...x, order: o.data.find(r => r.table_id === x.id) || null }));
+  $('#tgrid').innerHTML = S.tables.length ? S.tables.map(x => {
+    const r = x.order, busy = r && (r.lines || []).length;
+    return `<button class="tcard ${busy ? 'busy' : ''}" onclick="openTable(${x.id})">
+      <b>${esc(x.name)}</b>
+      ${busy ? `<span class="st">Occupied - ${money(tableTotal(r))}</span>
+        <small>${r.lines.reduce((s, l) => s + l.qty, 0)} items</small>
+        <small>${new Date(r.opened_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} by ${esc(r.opened_by_name || '-')}</small>`
+      : '<span class="st" style="color:#1f7a4d">Free</span>'}</button>`;
+  }).join('') : '<div class="empty">Abhi koi table nahi hai. Admin panel > Tables se add karen.</div>';
+}
+async function openTable(id) {
+  if (S.table) await saveTable();
+  const t = S.tables.find(x => x.id === id);                      // table ki info pehle se maujood hai
+  if (!t) return toast('Table nahi mili, Refresh karen', true);
+  const { data: r, error } = await sb.from('table_orders').select('*').eq('table_id', id).maybeSingle();  // sirf 1 request
+  if (error) return toast(error.message, true);
+  if (!S.table) S.stash = { cart: S.cart, cust: $('#cust').value, disc: $('#disc').value, note: $('#note').value, member: S.member };
+  S.loading = true;
+  S.table = t; S.hasRow = !!r;
+  S.cart = r ? r.lines : [];
+  $('#cust').value = r ? (r.customer_name || '') : '';
+  $('#disc').value = r ? r.discount : 0;
+  const rn = r ? (r.note || '') : '';
+  S.member = rn.startsWith('[M30] '); syncMember();
+  $('#note').value = S.member ? rn.slice(6) : rn;
+  $('#saveState').textContent = '';
+  renderMode(); renderCart();
+  S.loading = false;
+  switchTab('billing');
+}
+function leaveTable() {
+  clearTimeout(S.timer);
+  const st = S.stash || { cart: [], cust: '', disc: 0, note: '', member: false };
+  S.table = null; S.stash = null; S.hasRow = false; S.loading = true;
+  S.cart = st.cart; S.member = !!st.member; syncMember(); $('#cust').value = st.cust; $('#disc').value = st.disc; $('#note').value = st.note;
+  renderMode(); renderCart(); S.loading = false;
+}
+$('#backTables').onclick = async () => { await saveTable(); leaveTable(); switchTab('tables'); };
+
+/* table ka order DB me auto-save hota hai (taake dusre system par bhi nazar aye) */
+function dirty() {
+  if (!S.table || S.loading) return;
+  $('#saveState').textContent = 'saving...';
+  clearTimeout(S.timer); S.timer = setTimeout(saveTable, 700);
+}
+function saveTable() { clearTimeout(S.timer); S.q = S.q.then(doSave, doSave); return S.q; }
+function doSave() { return quietly(doSave2); }   // auto-save par spinner nahi
+async function doSave2() {
+  const t = S.table; if (!t) return;
+  const cart = JSON.parse(JSON.stringify(S.cart));
+  let error;
+  if (!cart.length) {
+    ({ error } = await sb.from('table_orders').delete().eq('table_id', t.id)); S.hasRow = false;
+  } else {
+    const base = { lines: cart, discount: calc().discount, customer_name: $('#cust').value.trim(), note: (S.member ? '[M30] ' : '') + $('#note').value.trim(), updated_at: new Date().toISOString() };
+    if (S.hasRow) ({ error } = await sb.from('table_orders').update(base).eq('table_id', t.id));
+    else {
+      ({ error } = await sb.from('table_orders').insert({ ...base, table_id: t.id, opened_by: S.me.id, opened_by_name: S.me.name }));
+      if (error && error.code === '23505') ({ error } = await sb.from('table_orders').update(base).eq('table_id', t.id));
+      if (!error) S.hasRow = true;
+    }
+  }
+  if (S.table === t) $('#saveState').textContent = error ? 'save failed' : 'saved';
+  if (error) toast(error.message, true);
+}
+$('#tRefresh').onclick = loadTables;
+
+/* ---------- my bills ---------- */
+async function loadBills(q) {
+  let req = sb.from('orders').select('*').eq('cashier_id', S.me.id).order('created_at', { ascending: false }).limit(50);
+  if (q) {
+    const n = Number((String(q).match(/(\d+)\s*$/) || [])[1]);
+    if (!n) return toast('Sahi Bill ID likhen', true);
+    req = sb.from('orders').select('*').eq('cashier_id', S.me.id).eq('order_no', n);
+  }
+  const { data, error } = await req;
+  if (error) return toast(error.message, true);
+  S.bills = data;
+  $('#billsTbl').innerHTML = data.length ? data.map((o, i) => `<tr>
+    <td><b>${billId(o.order_no)}</b></td><td class="n">${new Date(o.created_at).toLocaleString('en-GB')}</td>
+    <td>${esc(typeText(o))}</td><td>${esc(o.customer_name)}</td><td>${esc(o.lines.map(l => `${l.name} x${l.qty}`).join(', '))}</td>
+    <td class="n"><b>${money(o.total)}</b></td>
+    <td class="n"><button class="ghost" onclick="viewReceipt(S.bills[${i}])">View</button> <button class="ghost" onclick="printReceipt(S.bills[${i}])">Print</button></td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty">Koi bill nahi mila.</td></tr>';
+}
+$('#bGo').onclick = () => loadBills($('#bq').value.trim());
+$('#bAll').onclick = () => { $('#bq').value = ''; loadBills(); };
+
+boot();
+</script>
+</body>
+</html>
