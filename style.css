@@ -124,7 +124,7 @@ td.n{white-space:nowrap}
 @media print{
   body>*:not(#receipt){display:none!important}
   body{background:#fff}
-  #receipt{display:block!important;box-sizing:border-box;margin:0 auto;padding:2mm;max-width:100%;overflow:hidden}
+  #receipt{display:block!important;box-sizing:border-box;margin:0;padding:2mm;max-width:100%;overflow:hidden}
 }
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:20;padding:12px}
 .paper{background:#fff;width:340px;max-width:100%;max-height:92vh;overflow:auto;padding:16px;border-radius:10px}
