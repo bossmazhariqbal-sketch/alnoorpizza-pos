@@ -99,7 +99,7 @@ function printReceipt(o) {
   box.className = p58 ? 'p58' : '';
   let st = document.getElementById('pageSize');
   if (!st) { st = document.createElement('style'); st.id = 'pageSize'; document.head.appendChild(st); }
-  st.textContent = `@media print{@page{size:${p58 ? '58mm' : '80mm'} auto;margin:0}#receipt{width:${p58 ? '52mm' : '68mm'};margin-left:0!important;margin-right:auto!important;transform:translateX(${p58 ? '-2mm' : '-3mm'})}}`;
+  st.textContent = `@media print{@page{size:${p58 ? '58mm' : '80mm'} auto;margin:0}#receipt{width:${p58 ? '52mm' : '68mm'};margin-left:0!important;margin-right:auto!important;transform:translateX(${p58 ? '-0.5mm' : '-1mm'})}}`;
   box.innerHTML = `<div class="rc">${receiptHTML(o)}</div>`;
   const go = () => setTimeout(() => window.print(), 100);
   const imgs = [...box.querySelectorAll('img')];
