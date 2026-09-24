@@ -13,8 +13,8 @@ window.CFG = {
   FOOTER:
     "Thank you for your order! We hope to see you again. Pay Online Through JazzCash / Raast / Bank Transfer. Scan the QR code Above to pay online.",
   CURRENCY: "Rs",
-  BILL_PREFIX: "NM", // Bill ID: NM-000001
+  BILL_PREFIX: "NM",  // Bill ID: NM-000001
   DEFAULT_CUSTOMER: "Walk-in Customer", // customer ka naam na likha jaye to ye ayega
   LOGIN_DOMAIN: "noormahal.example.com", // staff username ke peeche internally lagta hai
-  PAPER: "80mm", // ya "58mm"
+  PAPER: "80mm", // ya "58mm" 
 };
