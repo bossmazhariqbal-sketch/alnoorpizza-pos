@@ -43,7 +43,6 @@
     <!-- BILLING -->
     <section id="tab-billing" class="bill">
       <div>
-        <div class="inline" style="margin-bottom:10px"><input id="search" type="search" placeholder="Item ya deal search karen..." autocomplete="off" style="flex:1;padding:10px 12px;font-size:16px"><button class="ghost hide" id="searchClr">X</button></div>
         <div class="chips" id="chips"></div>
         <div id="dealsBox"></div>
         <div id="itemsBox"></div>
@@ -63,7 +62,7 @@
         <div id="cartLines"></div>
         <button class="ghost" id="addCustom" style="margin:10px 0">+ Custom item</button>
         <div class="tot"><span>Subtotal</span><span id="sub">0</span></div>
-        <div class="tot"><span>Discount</span><span class="inline" style="flex-wrap:nowrap"><button class="ghost" id="memberBtn" style="padding:7px 10px">Member 20%</button><input id="disc" type="number" min="0" value="0" style="width:100px;text-align:right"></span></div>
+        <div class="tot"><span>Discount</span><span class="inline" style="flex-wrap:nowrap"><button class="ghost" id="memberBtn" style="padding:7px 10px">Member 30%</button><input id="disc" type="number" min="0" value="0" style="width:100px;text-align:right"></span></div>
         <div class="tot big"><span>Total</span><span id="grand">0</span></div>
         <div class="stack" style="margin-top:10px">
           <div class="inline">
@@ -106,7 +105,7 @@
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script>
-const S = { cats: [], items: [], deals: [], cart: [], cat: 'all', search: '', me: null, bills: [], type: 'takeaway',
+const S = { cats: [], items: [], deals: [], cart: [], cat: 'all', me: null, bills: [], type: 'takeaway',
             table: null, hasRow: false, member: false, stash: null, tables: [], loading: false, timer: null, q: Promise.resolve() };
 document.title = CFG.SHOP_NAME + ' - Billing';
 $('#loginShop').textContent = CFG.SHOP_NAME;
@@ -200,30 +199,20 @@ async function loadMenu() {
 function renderMenu() {
   $('#chips').innerHTML = `<button class="${S.cat === 'all' ? 'on' : ''}" onclick="S.cat='all';renderMenu()">All</button>` +
     S.cats.map(c => `<button class="c ${S.cat == c.id ? 'on' : ''}" style="${catStyle(c.id)}" onclick="S.cat='${c.id}';renderMenu()">${esc(c.name)}</button>`).join('');
-  const q = S.search.trim().toLowerCase();
-  const deals = S.deals.filter(d => d.active && (!q || (d.title + ' ' + (d.description || '')).toLowerCase().includes(q)));
-  $('#dealsBox').innerHTML = ((S.cat === 'all' || q) && deals.length) ? `<div class="sec">Deals</div><div class="grid">` +
+  const deals = S.deals.filter(d => d.active);
+  $('#dealsBox').innerHTML = (S.cat === 'all' && deals.length) ? `<div class="sec">Deals</div><div class="grid">` +
     deals.map(d => `<button class="deal sm" onclick="addLine('${jsq(d.title)}',${d.price})"><h3>${esc(d.title)}</h3><small>${esc(d.description)}</small><div class="p">${money(d.price)}</div></button>`).join('') + '</div>' : '';
-  const cats = (S.cat === 'all' || q) ? S.cats : S.cats.filter(c => c.id == S.cat);
+  const cats = S.cat === 'all' ? S.cats : S.cats.filter(c => c.id == S.cat);
   $('#itemsBox').innerHTML = cats.map(c => {
-    const l = S.items.filter(i => i.category_id === c.id && i.active && (!q || (i.name + ' ' + c.name).toLowerCase().includes(q)));
+    const l = S.items.filter(i => i.category_id === c.id && i.active);
     return l.length ? `<div class="sec"><b style="color:${PALETTE[c.id % PALETTE.length].bd}">${esc(c.name)}</b></div><div class="grid">` +
       l.map(i => `<button class="tile" style="${catStyle(c.id)}" data-id="${i.id}">${esc(i.name)}<span>${money(i.price)}</span></button>`).join('') + '</div>' : '';
-  }).join('') || (q ? '' : '<div class="empty">Abhi koi item nahi hai. Admin panel se items add karen.</div>');
-  if (q && !deals.length && !$('#itemsBox').innerHTML) $('#itemsBox').innerHTML = '<div class="empty">Koi item ya deal nahi mila.</div>';
+  }).join('') || '<div class="empty">Abhi koi item nahi hai. Admin panel se items add karen.</div>';
   document.querySelectorAll('.tile').forEach(b => b.onclick = () => {
     const it = S.items.find(x => x.id == b.dataset.id); addLine(it.name, it.price);
   });
   renderCart();
 }
-
-/* search: naam likhte hi items/deals filter ho jate hain */
-$('#search').oninput = e => { S.search = e.target.value; $('#searchClr').classList.toggle('hide', !S.search); renderMenu(); };
-$('#searchClr').onclick = () => { $('#search').value = ''; S.search = ''; $('#searchClr').classList.add('hide'); renderMenu(); $('#search').focus(); };
-$('#search').onkeydown = e => {   // Enter: agar sirf ek item mila ho to seedha bill me add
-  if (e.key !== 'Enter') return;
-  const t = document.querySelectorAll('#itemsBox .tile, #dealsBox .deal'); if (t.length === 1) t[0].click();
-};
 
 /* ---------- order type / table mode ---------- */
 function renderMode() {
@@ -263,9 +252,9 @@ function calc() {
   const discount = Math.min(Number($('#disc').value) || 0, subtotal);
   return { subtotal, discount, total: subtotal - discount };
 }
-/* Member card: 20% discount (Membership Card item par nahi lagta) */
-const memberDisc = () => Math.round(S.cart.filter(l => !/^membership card/i.test(l.name)).reduce((s, l) => s + l.price * l.qty, 0) * 0.2);
-const billNote = () => { const n = $('#note').value.trim(); return S.member ? 'Member 20%' + (n ? ' | ' + n : '') : n; };
+/* Member card: 30% discount (Membership Card item par nahi lagta) */
+const memberDisc = () => Math.round(S.cart.filter(l => !/^membership card/i.test(l.name)).reduce((s, l) => s + l.price * l.qty, 0) * 0.3);
+const billNote = () => { const n = $('#note').value.trim(); return S.member ? 'Member 30%' + (n ? ' | ' + n : '') : n; };
 function syncMember() { $('#memberBtn').classList.toggle('on', S.member); }
 function totals() {
   if (S.member) $('#disc').value = memberDisc();
@@ -353,7 +342,7 @@ async function openTable(id) {
   $('#cust').value = r ? (r.customer_name || '') : '';
   $('#disc').value = r ? r.discount : 0;
   const rn = r ? (r.note || '') : '';
-  S.member = rn.startsWith('[M20] '); syncMember();
+  S.member = rn.startsWith('[M30] '); syncMember();
   $('#note').value = S.member ? rn.slice(6) : rn;
   $('#saveState').textContent = '';
   renderMode(); renderCart();
@@ -384,7 +373,7 @@ async function doSave2() {
   if (!cart.length) {
     ({ error } = await sb.from('table_orders').delete().eq('table_id', t.id)); S.hasRow = false;
   } else {
-    const base = { lines: cart, discount: calc().discount, customer_name: $('#cust').value.trim(), note: (S.member ? '[M20] ' : '') + $('#note').value.trim(), updated_at: new Date().toISOString() };
+    const base = { lines: cart, discount: calc().discount, customer_name: $('#cust').value.trim(), note: (S.member ? '[M30] ' : '') + $('#note').value.trim(), updated_at: new Date().toISOString() };
     if (S.hasRow) ({ error } = await sb.from('table_orders').update(base).eq('table_id', t.id));
     else {
       ({ error } = await sb.from('table_orders').insert({ ...base, table_id: t.id, opened_by: S.me.id, opened_by_name: S.me.name }));

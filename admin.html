@@ -49,7 +49,9 @@
         <select id="dUser"><option value="">All users</option></select>
         <select id="dOt"><option value="">All types</option><option value="takeaway">Take Away</option><option value="delivery">Delivery</option><option value="dine_in">Dine-in</option></select>
         <button id="dGo">Show</button>
-        <button class="ghost" id="dXls" style="margin-left:auto">Download Excel</button>
+        <button class="ghost" id="dPdf" style="margin-left:auto">Download PDF (A4)</button>
+        <button class="ghost" id="dThermal">Print Thermal</button>
+        <button class="ghost" id="dXls">Download Excel</button>
       </div>
       <div class="stats" id="stats"></div>
       <div class="card tblw"><h3 style="margin-bottom:6px">Sales by user</h3>
@@ -161,6 +163,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script>
@@ -411,6 +415,134 @@ $('#dXls').onclick = () => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.values(items)), 'Items summary');
   XLSX.writeFile(wb, `sales-${S.range}.xlsx`);
 };
+$('#dPdf').onclick = () => {
+  if (!S.orders.length) return toast('Download ke liye koi data nahi', true);
+  if (!window.jspdf || !window.jspdf.jsPDF) return toast('PDF library load nahi hui. Page refresh karen.', true);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const orders = S.orders;
+  const total = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const discount = orders.reduce((sum, o) => sum + Number(o.discount || 0), 0);
+  const byPayment = {}, byType = {}, byUser = {}, byItem = {};
+  orders.forEach(o => {
+    const payment = o.payment || 'Unknown', type = typeText(o), user = o.cashier_name || 'Unknown';
+    byPayment[payment] = byPayment[payment] || { bills: 0, sale: 0 };
+    byPayment[payment].bills++; byPayment[payment].sale += Number(o.total || 0);
+    byType[type] = byType[type] || { bills: 0, sale: 0 };
+    byType[type].bills++; byType[type].sale += Number(o.total || 0);
+    byUser[user] = byUser[user] || { bills: 0, sale: 0, discount: 0 };
+    byUser[user].bills++; byUser[user].sale += Number(o.total || 0); byUser[user].discount += Number(o.discount || 0);
+    (o.lines || []).forEach(line => {
+      byItem[line.name] = byItem[line.name] || { qty: 0, amount: 0 };
+      byItem[line.name].qty += Number(line.qty || 0);
+      byItem[line.name].amount += Number(line.qty || 0) * Number(line.price || 0);
+    });
+  });
+  const cash = value => `${CFG.CURRENCY} ${fmt(value)}`;
+  const title = `${$('#dType').value[0].toUpperCase()}${$('#dType').value.slice(1)} Sales Report`;
+  const range = getRange();
+  const reportDate = range.t === 'daily' ? range.a.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : S.range;
+  doc.setFillColor(31, 77, 55); doc.rect(0, 0, 297, 49, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFontSize(17); doc.text(CFG.SHOP_NAME, 14, 13);
+  doc.setFontSize(11); doc.text(title, 14, 21);
+  doc.setFontSize(9); doc.text(`Date: ${reportDate}`, 14, 29);
+  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 283, 29, { align: 'right' });
+  doc.setDrawColor(132, 165, 144); doc.line(105, 33, 105, 45); doc.line(198, 33, 198, 45);
+  doc.setFontSize(8); doc.text('TOTAL SALE', 14, 36); doc.text('DISCOUNT', 114, 36); doc.text('TOTAL BILLS', 207, 36);
+  doc.setFontSize(14); doc.text(cash(total), 14, 44); doc.text(cash(discount), 114, 44); doc.text(String(orders.length), 207, 44);
+  doc.setTextColor(30, 40, 34);
+  const tableStyle = { theme: 'striped', styles: { fontSize: 8, cellPadding: 2.5 }, headStyles: { fillColor: [42, 91, 65] }, margin: { bottom: 18 } };
+  let y = 59;
+  doc.setFontSize(11); doc.setTextColor(31, 77, 55); doc.text('Sales breakdown', 14, y); y += 3;
+  const leftRows = Object.entries(byPayment).map(([name, v]) => [name, String(v.bills), cash(v.sale)]);
+  const rightRows = Object.entries(byType).map(([name, v]) => [name, String(v.bills), cash(v.sale)]);
+  doc.autoTable({ ...tableStyle, startY: y, margin: { left: 14, right: 150, bottom: 18 }, head: [['Payment method', 'Bills', 'Net sales']], body: leftRows });
+  const leftEnd = doc.lastAutoTable.finalY;
+  doc.autoTable({ ...tableStyle, startY: y, margin: { left: 150, right: 14, bottom: 18 }, head: [['Order type', 'Bills', 'Net sales']], body: rightRows });
+  y = Math.max(leftEnd, doc.lastAutoTable.finalY) + 8;
+  doc.setFontSize(11); doc.setTextColor(31, 77, 55); doc.text('Cashier summary', 14, y); y += 3;
+  doc.autoTable({ ...tableStyle, startY: y, head: [['Cashier', 'Bills', 'Discount', 'Net sales']], body: Object.entries(byUser).map(([name, v]) => [name, String(v.bills), cash(v.discount), cash(v.sale)]) });
+  y = doc.lastAutoTable.finalY + 8;
+  doc.setFontSize(11); doc.setTextColor(31, 77, 55); doc.text('Items summary', 14, y); y += 3;
+  doc.autoTable({ ...tableStyle, startY: y, head: [['Item', 'Quantity sold', 'Sales amount']], body: Object.entries(byItem).sort((a, b) => b[1].amount - a[1].amount).map(([name, v]) => [name, String(v.qty), cash(v.amount)]) });
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page++) {
+    doc.setPage(page); doc.setDrawColor(210, 218, 212); doc.line(14, 202, 283, 202);
+    doc.setFontSize(8); doc.setTextColor(105, 115, 108);
+    doc.text(`${CFG.SHOP_NAME}  |  ${S.range}`, 14, 207);
+    doc.text(`Page ${page} of ${pageCount}`, 283, 207, { align: 'right' });
+  }
+  doc.save(`sales-${String(S.range).replace(/[^a-z0-9-]/gi, '-')}.pdf`);
+};
+$('#dThermal').onclick = () => {
+  if (!S.orders.length) return toast('Print ke liye koi data nahi', true);
+  const paper = CFG.PAPER === '58mm' ? '58mm' : '80mm';
+  const width = paper === '58mm' ? '44mm' : '60mm';
+  const orders = S.orders;
+  const total = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const discount = orders.reduce((sum, o) => sum + Number(o.discount || 0), 0);
+  const payments = {}, types = {}, cashiers = {}, items = {};
+  orders.forEach(o => {
+    const payment = o.payment || 'Unknown', type = typeText(o), cashier = o.cashier_name || 'Unknown';
+    payments[payment] = payments[payment] || { bills: 0, sale: 0 };
+    payments[payment].bills++; payments[payment].sale += Number(o.total || 0);
+    types[type] = types[type] || { bills: 0, sale: 0 };
+    types[type].bills++; types[type].sale += Number(o.total || 0);
+    cashiers[cashier] = cashiers[cashier] || { bills: 0, sale: 0 };
+    cashiers[cashier].bills++; cashiers[cashier].sale += Number(o.total || 0);
+    (o.lines || []).forEach(line => {
+      items[line.name] = items[line.name] || { qty: 0, sale: 0 };
+      items[line.name].qty += Number(line.qty || 0);
+      items[line.name].sale += Number(line.qty || 0) * Number(line.price || 0);
+    });
+  });
+  const amount = n => `${CFG.CURRENCY} ${fmt(n)}`;
+  const range = getRange();
+  const reportDate = range.t === 'daily' ? range.a.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : S.range;
+  const win = window.open('', '_blank');
+  if (!win) return toast('Print window block hui. Browser me pop-ups allow karen.', true);
+  const printDoc = win.document;
+  printDoc.title = 'Thermal sales report';
+  printDoc.head.replaceChildren(); printDoc.body.replaceChildren();
+  const style = printDoc.createElement('style');
+  style.textContent = `@page{size:${paper} auto;margin:0}*{box-sizing:border-box}html{width:100%;margin:0}body{width:${width};max-width:100%;margin-left:auto;margin-right:auto;padding:1mm;color:#111;font:8px/1.2 Arial,sans-serif}
+    h1{font-size:11px;text-align:center;margin:0 0 2px}.sub{text-align:center;font-size:7px}.rule{border:0;border-top:1px dashed #111;margin:4px 0}
+    .totals{display:grid;grid-template-columns:1fr 1fr;gap:2px;text-align:center}.metric{padding:2px 1px}.metric strong{display:block;font-size:9px;margin-top:1px}
+    h2{font-size:8px;text-transform:uppercase;margin:6px 0 2px}table{width:100%;border-collapse:collapse}td{font-size:7px;line-height:1.05;padding:1px 0;vertical-align:top;border-bottom:1px dotted #aaa;overflow-wrap:anywhere;white-space:pre-line}.num{text-align:right;padding-left:2px;white-space:pre-line}
+    .foot{text-align:center;font-size:6px;margin-top:5px}@media print{html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact}body{position:relative;left:0;right:0;margin-left:auto;margin-right:auto}}`;
+  printDoc.head.appendChild(style);
+  const add = (tag, parent, className, text) => {
+    const el = printDoc.createElement(tag);
+    if (className) el.className = className;
+    if (text != null) el.textContent = text;
+    parent.appendChild(el);
+    return el;
+  };
+  const body = printDoc.body;
+  add('h1', body, '', CFG.SHOP_NAME);
+  add('div', body, 'sub', `${$('#dType').value} sales report\nDate: ${reportDate}`);
+  add('hr', body, 'rule');
+  const totals = add('div', body, 'totals');
+  [['TOTAL SALE', amount(total)], ['DISCOUNT', amount(discount)], ['TOTAL BILLS', String(orders.length)], ['AVERAGE BILL', amount(orders.length ? total / orders.length : 0)]]
+    .forEach(([label, value]) => { const metric = add('div', totals, 'metric', label); add('strong', metric, '', value); });
+  add('hr', body, 'rule');
+  const addSummary = (title, data, value) => {
+    add('h2', body, '', title);
+    const table = add('table', body), tbody = add('tbody', table);
+    Object.entries(data).forEach(([name, summary]) => {
+      const row = add('tr', tbody), nameCell = add('td', row, '', name);
+      const valueCell = add('td', row, 'num', value(summary));
+      nameCell.scope = 'row'; valueCell.setAttribute('aria-label', value(summary).replace('\n', ', '));
+    });
+  };
+  addSummary('Payment summary', payments, v => `${v.bills} bills\n${amount(v.sale)}`);
+  addSummary('Order type', types, v => `${v.bills} bills\n${amount(v.sale)}`);
+  addSummary('Cashier summary', cashiers, v => `${v.bills} bills\n${amount(v.sale)}`);
+  addSummary('Items summary', items, v => `${v.qty} sold\n${amount(v.sale)}`);
+  add('hr', body, 'rule');
+  add('div', body, 'foot', `${orders.length} bills | Generated ${new Date().toLocaleString('en-GB')}`);
+  setTimeout(() => { win.focus(); win.print(); }, 250);
+};
 
 /* ---------- bills (search by Bill ID) ---------- */
 async function loadBills(q) {
@@ -437,25 +569,63 @@ $('#bq').addEventListener('keydown', e => { if (e.key === 'Enter') $('#bGo').cli
 function viewBill(o, stay) {
   S.cur = o;
   if (!stay) showTab('bills');
+  renderBillDetail();
+  $('#billDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function renderBillDetail() {
+  const o = S.cur;
+  if (!o) return;
+  const editing = !!S.editing;
   $('#billDetail').innerHTML = `<div class="card" style="margin-top:14px">
-    <h3>Bill ${billId(o.order_no)}</h3>
+    <h3>Bill ${billId(o.order_no)}${editing ? ' - Edit' : ''}</h3>
     <div class="detail">
       <div><span>Date &amp; time</span><b>${new Date(o.created_at).toLocaleString('en-GB')}</b></div>
       <div><span>User</span><b>${esc(o.cashier_name)}</b></div>
-      <div><span>Customer</span><b>${esc(o.customer_name)}</b></div>
-      <div><span>Type</span><b>${esc(typeText(o))}</b></div>
-      <div><span>Payment</span><b>${esc(o.payment)}</b></div>
-      ${o.note ? `<div><span>Note</span><b>${esc(o.note)}</b></div>` : ''}
+      <div><span>Customer</span>${editing ? `<input id="editCustomer" value="${esc(o.customer_name)}">` : `<b>${esc(o.customer_name)}</b>`}</div>
+      <div><span>Type</span>${editing ? `<select id="editType"><option value="takeaway" ${o.order_type === 'takeaway' ? 'selected' : ''}>Take Away</option><option value="delivery" ${o.order_type === 'delivery' ? 'selected' : ''}>Delivery</option><option value="dine_in" ${o.order_type === 'dine_in' ? 'selected' : ''}>Dine-in</option></select>` : `<b>${esc(typeText(o))}</b>`}</div>
+      <div><span>Payment</span>${editing ? `<select id="editPayment">${['Cash', 'Card', 'Online'].map(p => `<option ${o.payment === p ? 'selected' : ''}>${p}</option>`).join('')}</select>` : `<b>${esc(o.payment)}</b>`}</div>
+      ${editing ? `<div><span>Note</span><input id="editNote" value="${esc(o.note || '')}"></div>` : (o.note ? `<div><span>Note</span><b>${esc(o.note)}</b></div>` : '')}
     </div>
-    <table><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>
-      ${o.lines.map(l => `<tr><td><b>${esc(l.name)}</b></td><td>${l.qty}</td><td>${fmt(l.price)}</td><td>${fmt(l.qty * l.price)}</td></tr>`).join('')}
+    <table><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Amount</th>${editing ? '<th></th>' : ''}</tr></thead><tbody>
+      ${o.lines.map((l, i) => `<tr><td>${editing ? `<input value="${esc(l.name)}" oninput="S.cur.lines[${i}].name=this.value">` : `<b>${esc(l.name)}</b>`}</td><td>${editing ? `<input type="number" min="1" value="${l.qty}" oninput="S.cur.lines[${i}].qty=Math.max(1,Number(this.value)||1);updateBillTotals()">` : l.qty}</td><td>${editing ? `<input type="number" min="0" step="0.01" value="${l.price}" oninput="S.cur.lines[${i}].price=Math.max(0,Number(this.value)||0);updateBillTotals()">` : fmt(l.price)}</td><td id="editAmt${i}">${fmt(l.qty * l.price)}</td>${editing ? `<td><button class="danger" onclick="removeBillLine(${i})">Remove</button></td>` : ''}</tr>`).join('')}
     </tbody></table>
-    <div class="tot"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
-    <div class="tot"><span>Discount</span><span>${money(o.discount)}</span></div>
-    <div class="tot big"><span>Total</span><span>${money(o.total)}</span></div>
-    <div class="inline" style="margin-top:10px"><button class="ghost" onclick="viewReceipt(S.cur)">View receipt</button><button onclick="printReceipt(S.cur)">Print</button><button class="danger" onclick="delBill(${o.id})">Delete bill</button></div>
+    ${editing ? '<button class="ghost" style="margin-top:8px" onclick="addBillLine()">Add item</button>' : ''}
+    <div class="tot"><span>Subtotal</span><span id="editSubtotal">${money(o.subtotal)}</span></div>
+    <div class="tot"><span>Discount</span>${editing ? `<input id="editDiscount" type="number" min="0" step="0.01" value="${o.discount}" oninput="updateBillTotals()">` : `<span>${money(o.discount)}</span>`}</div>
+    <div class="tot big"><span>Total</span><span id="editTotal">${money(o.total)}</span></div>
+    <div class="inline" style="margin-top:10px">${editing ? '<button onclick="saveBillEdit()">Save changes</button><button class="ghost" onclick="cancelBillEdit()">Cancel</button>' : '<button class="ghost" onclick="viewReceipt(S.cur)">View receipt</button><button onclick="printReceipt(S.cur)">Print</button><button class="ghost" onclick="startBillEdit()">Edit bill</button><button class="danger" onclick="delBill(' + o.id + ')">Delete bill</button>'}</div>
   </div>`;
-  $('#billDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function startBillEdit() {
+  S.originalBill = JSON.parse(JSON.stringify(S.cur));
+  S.editing = true; renderBillDetail();
+}
+function cancelBillEdit() {
+  S.cur = S.originalBill; S.originalBill = null; S.editing = false; renderBillDetail();
+}
+function addBillLine() { S.cur.lines.push({ name: 'New item', qty: 1, price: 0 }); renderBillDetail(); }
+function removeBillLine(i) { S.cur.lines.splice(i, 1); renderBillDetail(); }
+function updateBillTotals() {
+  const subtotal = S.cur.lines.reduce((sum, l) => sum + Number(l.qty || 0) * Number(l.price || 0), 0);
+  const discount = Math.min(Math.max(Number($('#editDiscount').value) || 0, 0), subtotal);
+  $('#editSubtotal').textContent = money(subtotal);
+  $('#editTotal').textContent = money(subtotal - discount);
+  S.cur.lines.forEach((l, i) => { const amount = $('#editAmt' + i); if (amount) amount.textContent = fmt(l.qty * l.price); });
+}
+async function saveBillEdit() {
+  if (!S.cur.lines.length) return toast('Bill me kam az kam aik item zaroori hai', true);
+  const lines = S.cur.lines.map(l => ({ name: String(l.name || '').trim(), qty: Math.max(1, Number(l.qty) || 1), price: Math.max(0, Number(l.price) || 0) }));
+  if (lines.some(l => !l.name)) return toast('Har item ka naam likhen', true);
+  const subtotal = lines.reduce((sum, l) => sum + l.qty * l.price, 0);
+  const discount = Math.min(Math.max(Number($('#editDiscount').value) || 0, 0), subtotal);
+  const changes = { lines, subtotal, discount, total: subtotal - discount, customer_name: $('#editCustomer').value.trim(), order_type: $('#editType').value, payment: $('#editPayment').value, note: $('#editNote')?.value.trim() || '' };
+  const { data, error } = await sb.from('orders').update(changes).eq('id', S.cur.id).select().single();
+  if (error) return toast(error.message, true);
+  S.cur = data; S.editing = false; S.originalBill = null;
+  toast('Bill updated');
+  await loadBills($('#bq').value.trim());
+  viewBill(data, true);
+  await loadDash();
 }
 async function delBill(id) {
   if (!confirm('Ye bill hamesha ke liye delete ho jayega. Pakka?')) return;
