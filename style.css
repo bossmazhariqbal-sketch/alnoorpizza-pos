@@ -135,6 +135,7 @@ td.n{white-space:nowrap}
 .seg button.on{background:var(--basil);color:#fff;border-color:var(--basil)}
 .tbar{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fde8e4;border:2px solid var(--tomato);border-radius:8px;padding:8px 10px;margin-bottom:8px}
 .tbar b{font-size:18px;font-weight:800}
+.kitchen-new{color:var(--tomato);font-weight:700;white-space:nowrap}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:12px}
 .tcard{text-align:left;color:var(--ink);background:#e3f2e8;border:2px solid #1f7a4d;padding:14px;display:flex;flex-direction:column;gap:4px;min-height:120px;font-weight:400}
 .tcard:hover{background:#d3ebdb}

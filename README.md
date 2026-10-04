@@ -24,6 +24,9 @@ Supabase project me ye SQL files run ho chuki hain (naye project ke liye is orde
 1. `supabase.sql`
 2. `supabase-v2.sql`
 3. `supabase-v3-tables.sql`
+4. `supabase-v4-kitchen-batches.sql` (existing project par additional dine-in kitchen orders ke liye)
+
+Open dine-in table ka bill `table_orders.lines` me jama hota rehta hai. Kitchen batches isi table-order row par track hote hain, aur table close karte waqt `orders.kitchen_batches` me copy hote hain. V4 migration dono columns add karti hai aur duplicate batch claims rokne ke liye RPC functions install karti hai. Is migration ko billing page deploy/use karne se pehle run karen.
 
 User banane wali Edge Function ka naam `manage-users` hai (Supabase project me deploy hai).
 

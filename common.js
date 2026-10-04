@@ -93,6 +93,26 @@ function receiptHTML(o) {
     <div class="c">${esc(CFG.FOOTER)}</div>`;
 }
 function printReceipt(o) {
+  return printThermalReceipt(receiptHTML(o));
+}
+function kitchenReceiptHTML(o) {
+  const d = new Date(o.created_at || Date.now());
+  const date = d.toLocaleDateString('en-GB');
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `
+    ${CFG.LOGO ? `<img class="logo" src="${esc(CFG.LOGO)}" alt="${esc(CFG.SHOP_NAME)}">` : `<div class="c b big">${esc(CFG.SHOP_NAME)}</div>`}
+    <div class="hr"></div>
+    <div class="r"><span>Cashier: ${esc(o.cashier_name || '-')}</span><span class="b">${date}</span></div>
+    <div class="c b big">${esc(String(o.table_name || '').toUpperCase())}</div>
+    <div class="r"><span class="b mid">ORDER #${o.batch_no}</span><span class="b">${time}</span></div>
+    <div class="hr"></div>
+    ${o.lines.map(l => `<div class="r"><span class="b">${esc(l.name)}</span><span class="b">× ${fmt(l.qty)}</span></div>`).join('')}
+    <div class="hr"></div>`;
+}
+function printKitchenReceipt(o) {
+  return printThermalReceipt(kitchenReceiptHTML(o));
+}
+function printThermalReceipt(html) {
   let box = document.getElementById('receipt');
   if (!box) { box = document.createElement('div'); box.id = 'receipt'; document.body.appendChild(box); }
   const p58 = CFG.PAPER === '58mm';
@@ -100,10 +120,17 @@ function printReceipt(o) {
   let st = document.getElementById('pageSize');
   if (!st) { st = document.createElement('style'); st.id = 'pageSize'; document.head.appendChild(st); }
   st.textContent = `@media print{@page{size:${p58 ? '58mm' : '80mm'} auto;margin:0}#receipt{width:${p58 ? '52mm' : '68mm'};margin-left:0!important;margin-right:auto!important;transform:translateX(${p58 ? '-0.5mm' : '-1mm'})}}`;
-  box.innerHTML = `<div class="rc">${receiptHTML(o)}</div>`;
-  const go = () => setTimeout(() => window.print(), 100);
+  box.innerHTML = `<div class="rc">${html}</div>`;
+  const go = () => new Promise((resolve, reject) => setTimeout(() => {
+    try {
+      window.print();
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  }, 100));
   const imgs = [...box.querySelectorAll('img')];
-  Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
+  return Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
     img.onload = img.onerror = resolve;
   }))).then(go);
 }

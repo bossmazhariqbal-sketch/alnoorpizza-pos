@@ -1,8 +1,8 @@
 // Supabase > Project Settings > API se ye 2 values copy karen
 window.CFG = {
-  SUPABASE_URL: "https://vyrpymolxyhmumrwnxca.supabase.co",
+  SUPABASE_URL: "https://fjqqywzddxzgrbbmwcmd.supabase.co",
   SUPABASE_ANON_KEY:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5cnB5bW9seHlobXVtcndueGNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDQxMzEsImV4cCI6MjEwNjY4MDEzMX0.vASVwNuKblqhwDlImgzBkUoGCnMtl2zJ8nW-l66sF7k",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqcXF5d3pkZHh6Z3JiYm13Y21kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5MDQ3OTksImV4cCI6MjEwNTQ4MDc5OX0.b7_jF8WPVWZRunsTxXnAZ0uCvahlFY-DgGIuH2re4XQ",
 
   LOGO: "logo.png", // receipt ke top par; khali "" chor den to sirf naam print hoga
   QR_CODE: "payment-qr.png", // online payment QR image

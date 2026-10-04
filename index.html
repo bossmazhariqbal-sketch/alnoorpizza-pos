@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Billing</title>
-<link rel="preconnect" href="https://fjqqywzddxzgrbbmwcmd.supabase.co" crossorigin>
+<link rel="preconnect" href="https://vyrpymolxyhmumrwnxca.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preload" href="logo.png" as="image">
 <link rel="stylesheet" href="style.css">
@@ -71,6 +71,7 @@
             <input id="note" placeholder="Note" style="flex:1">
           </div>
           <button class="ghost" id="previewBtn">Preview bill</button>
+          <button class="ghost hide" id="sendKitchenBtn">Send New Items to Kitchen</button>
           <button id="saveBtn">Save &amp; print</button>
           <button class="ghost" id="clearBtn">Clear bill</button>
         </div>
@@ -107,7 +108,8 @@
 <script src="common.js"></script>
 <script>
 const S = { cats: [], items: [], deals: [], cart: [], cat: 'all', search: '', me: null, bills: [], type: 'takeaway',
-            table: null, hasRow: false, member: false, stash: null, tables: [], loading: false, timer: null, q: Promise.resolve() };
+            table: null, hasRow: false, kitchenBatches: [], kitchenSending: false, member: false, stash: null,
+            tables: [], loading: false, timer: null, q: Promise.resolve() };
 document.title = CFG.SHOP_NAME + ' - Billing';
 $('#loginShop').textContent = CFG.SHOP_NAME;
 $('#shop').textContent = CFG.SHOP_NAME;
@@ -158,8 +160,9 @@ $('#loginBtn').onclick = async () => {
 };
 $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
 $('#logout').onclick = async () => {
+  if (S.kitchenSending) return toast('Kitchen receipt print hone tak wait karen', true);
   if (S.table) await saveTable();
-  S.cart = []; S.table = null; S.stash = null; S.me = null;
+  S.cart = []; S.table = null; S.stash = null; S.kitchenBatches = []; S.me = null;
   localStorage.removeItem(PROF_KEY);
   await sb.auth.signOut(); showLogin();
 };
@@ -230,18 +233,26 @@ function renderMode() {
   const tm = !!S.table;
   $('#typeSeg').classList.toggle('hide', tm);
   $('#tableBar').classList.toggle('hide', !tm);
+  $('#sendKitchenBtn').classList.toggle('hide', !tm);
   if (tm) $('#tableName').textContent = S.table.name;
   document.querySelectorAll('#typeSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === S.type));
   $('#saveBtn').textContent = tm ? 'Final bill & print' : 'Save & print';
+  $('#saveBtn').disabled = S.kitchenSending;
   $('#clearBtn').textContent = tm ? 'Clear table' : 'Clear bill';
+  $('#clearBtn').disabled = S.kitchenSending;
+  $('#backTables').disabled = S.kitchenSending;
   $('#note').placeholder = (!tm && S.type === 'delivery') ? 'Address / phone' : 'Note';
+  updateKitchenButton();
 }
 document.querySelectorAll('#typeSeg button').forEach(b => b.onclick = () => { S.type = b.dataset.t; renderMode(); });
 
 /* ---------- cart ---------- */
+const newKitchenLineId = () => typeof crypto !== 'undefined' && crypto.randomUUID
+  ? crypto.randomUUID() : `kl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 function addLine(name, price) {
   const ex = S.cart.find(l => l.name === name && l.price === Number(price));
   if (ex) ex.qty++; else S.cart.push({ name, price: Number(price), qty: 1 });
+  if (!ex) S.cart[S.cart.length - 1].kitchen_line_id = newKitchenLineId();
   renderCart();
 }
 function renderCart() {
@@ -252,11 +263,84 @@ function renderCart() {
       <div class="row2">
         <button class="q" onclick="qty(${i},-1)">-</button><b>${l.qty}</b><button class="q" onclick="qty(${i},1)">+</button>
         <button class="danger q" onclick="S.cart.splice(${i},1);renderCart()">Remove</button>
-        <span class="amt" id="amt${i}">${money(l.price * l.qty)}</span>
+        <span class="amt" id="amt${i}">${money(l.price * l.qty)}${pendingQtyForCartLine(i) ? ` <small class="kitchen-new">+${pendingQtyForCartLine(i)} new</small>` : ''}</span>
       </div>
     </div>`).join('') : '<div class="empty">Item ya deal par click karen.</div>';
+  updateKitchenButton();
   totals();
 }
+function pendingQtyForCartLine(index) {
+  const line = S.cart[index];
+  if (!line || !S.table) return 0;
+  const keyMatch = l => line.kitchen_line_id
+    ? l.kitchen_line_id === line.kitchen_line_id
+    : !l.kitchen_line_id && l.name === line.name && Number(l.price) === Number(line.price);
+  const start = S.cart.slice(0, index).filter(keyMatch).reduce((sum, l) => sum + Number(l.qty || 0), 0);
+  const sent = S.kitchenBatches.filter(b => b.status === 'sent').reduce((sum, b) =>
+    sum + (b.lines || []).filter(keyMatch).reduce((qty, l) => qty + Number(l.qty || 0), 0), 0);
+  return Math.max(0, start + Number(line.qty || 0) - Math.max(start, sent));
+}
+function pendingKitchenLines() {
+  const pending = new Map();
+  S.cart.forEach((line, index) => {
+    const qty = pendingQtyForCartLine(index);
+    if (!qty) return;
+    const key = line.kitchen_line_id || JSON.stringify([line.name, Number(line.price)]);
+    const existing = pending.get(key);
+    if (existing) existing.qty += qty;
+    else pending.set(key, { name: line.name, price: Number(line.price), qty });
+  });
+  return [...pending.values()];
+}
+function updateKitchenButton() {
+  const button = $('#sendKitchenBtn');
+  if (button) button.disabled = S.kitchenSending || !pendingKitchenLines().length;
+  S.cart.forEach((line, index) => {
+    const amount = $('#amt' + index);
+    if (!amount) return;
+    const newQty = pendingQtyForCartLine(index);
+    amount.innerHTML = `${money(line.price * line.qty)}${newQty ? ` <small class="kitchen-new">+${newQty} new</small>` : ''}`;
+  });
+}
+$('#sendKitchenBtn').onclick = async () => {
+  if (!S.table || S.kitchenSending) return;
+  S.kitchenSending = true;
+  renderMode();
+  try {
+    if (!(await saveTable())) return;
+    const { data: batch, error } = await sb.rpc('claim_table_kitchen_batch', { p_table_id: S.table.id });
+    if (error) throw error;
+    if (!batch) return toast('Koi naye items kitchen ke liye nahi hain');
+
+    let confirmed = false;
+    try {
+      await printKitchenReceipt({ table_name: S.table.name, batch_no: batch.batch_no, lines: batch.lines, cashier_name: S.me.name, created_at: new Date().toISOString() });
+      confirmed = confirm('Kya kitchen receipt successfully print hui? OK se items sent mark honge; Cancel se unhein unsent rakha jayega.');
+    } catch (e) {
+      const { error: finishError } = await sb.rpc('finish_table_kitchen_batch', {
+        p_table_id: S.table.id, p_token: batch.token, p_sent: false
+      });
+      if (finishError) toast('Print failed and reservation clear nahi hui: ' + finishError.message, true);
+      throw e;
+    }
+
+    const { data: finished, error: finishError } = await sb.rpc('finish_table_kitchen_batch', {
+      p_table_id: S.table.id, p_token: batch.token, p_sent: confirmed
+    });
+    if (finishError) throw finishError;
+    if (!finished) throw new Error('Kitchen batch status update nahi hui. Duplicate print se bachne ke liye dobara send na karen.');
+    if (confirmed) {
+      S.kitchenBatches.push({ ...batch, status: 'sent' });
+      toast('Kitchen order #' + batch.batch_no + ' sent');
+    } else toast('Items unsent rahe; zarurat par dobara send kar sakte hain');
+  } catch (e) {
+    toast(e.message || 'Kitchen order send nahi ho saka', true);
+  } finally {
+    S.kitchenSending = false;
+    renderMode();
+    renderCart();
+  }
+};
 function qty(i, d) { S.cart[i].qty += d; if (S.cart[i].qty < 1) S.cart.splice(i, 1); renderCart(); }
 function calc() {
   const subtotal = S.cart.reduce((s, l) => s + l.price * l.qty, 0);
@@ -272,6 +356,7 @@ function totals() {
   const c = calc();
   S.cart.forEach((l, i) => { const e = $('#amt' + i); if (e) e.textContent = money(l.price * l.qty); });
   $('#sub').textContent = money(c.subtotal); $('#grand').textContent = money(c.total);
+  updateKitchenButton();
   dirty();
 }
 $('#disc').oninput = () => { S.member = false; syncMember(); totals(); };   // haath se discount likhen to member mode band
@@ -282,7 +367,7 @@ $('#memberBtn').onclick = () => {
 };
 $('#cust').oninput = dirty;
 $('#note').oninput = dirty;
-$('#addCustom').onclick = () => { S.cart.push({ name: 'Custom item', price: 0, qty: 1 }); renderCart(); };
+$('#addCustom').onclick = () => { S.cart.push({ name: 'Custom item', price: 0, qty: 1, kitchen_line_id: newKitchenLineId() }); renderCart(); };
 function clearForm() { S.cart = []; S.member = false; syncMember(); $('#disc').value = 0; $('#note').value = ''; $('#cust').value = ''; renderCart(); }
 $('#clearBtn').onclick = async () => {
   if (S.table) {
@@ -306,7 +391,8 @@ $('#saveBtn').onclick = async () => {
   const o = draft(), tm = !!S.table;
   const { data, error } = await sb.from('orders').insert({
     lines: o.lines, subtotal: o.subtotal, discount: o.discount, total: o.total, payment: o.payment, note: o.note,
-    customer_name: o.customer_name, cashier_id: S.me.id, cashier_name: S.me.name, order_type: o.order_type, table_name: o.table_name
+    customer_name: o.customer_name, cashier_id: S.me.id, cashier_name: S.me.name, order_type: o.order_type, table_name: o.table_name,
+    ...(tm ? { kitchen_batches: S.kitchenBatches } : {})
   }).select().single();
   btn.disabled = false;
   if (error) return toast(error.message, true);
@@ -341,6 +427,7 @@ async function loadTables() {
   }).join('') : '<div class="empty">Abhi koi table nahi hai. Admin panel > Tables se add karen.</div>';
 }
 async function openTable(id) {
+  if (S.kitchenSending) return toast('Kitchen receipt print hone tak wait karen', true);
   if (S.table) await saveTable();
   const t = S.tables.find(x => x.id === id);                      // table ki info pehle se maujood hai
   if (!t) return toast('Table nahi mili, Refresh karen', true);
@@ -349,7 +436,8 @@ async function openTable(id) {
   if (!S.table) S.stash = { cart: S.cart, cust: $('#cust').value, disc: $('#disc').value, note: $('#note').value, member: S.member };
   S.loading = true;
   S.table = t; S.hasRow = !!r;
-  S.cart = r ? r.lines : [];
+  S.kitchenBatches = r && Array.isArray(r.kitchen_batches) ? r.kitchen_batches : [];
+  S.cart = r ? (r.lines || []).map(l => ({ ...l, kitchen_line_id: l.kitchen_line_id || newKitchenLineId() })) : [];
   $('#cust').value = r ? (r.customer_name || '') : '';
   $('#disc').value = r ? r.discount : 0;
   const rn = r ? (r.note || '') : '';
@@ -363,7 +451,7 @@ async function openTable(id) {
 function leaveTable() {
   clearTimeout(S.timer);
   const st = S.stash || { cart: [], cust: '', disc: 0, note: '', member: false };
-  S.table = null; S.stash = null; S.hasRow = false; S.loading = true;
+  S.table = null; S.stash = null; S.hasRow = false; S.kitchenBatches = []; S.loading = true;
   S.cart = st.cart; S.member = !!st.member; syncMember(); $('#cust').value = st.cust; $('#disc').value = st.disc; $('#note').value = st.note;
   renderMode(); renderCart(); S.loading = false;
 }
@@ -372,13 +460,14 @@ $('#backTables').onclick = async () => { await saveTable(); leaveTable(); switch
 /* table ka order DB me auto-save hota hai (taake dusre system par bhi nazar aye) */
 function dirty() {
   if (!S.table || S.loading) return;
+  updateKitchenButton();
   $('#saveState').textContent = 'saving...';
   clearTimeout(S.timer); S.timer = setTimeout(saveTable, 700);
 }
 function saveTable() { clearTimeout(S.timer); S.q = S.q.then(doSave, doSave); return S.q; }
 function doSave() { return quietly(doSave2); }   // auto-save par spinner nahi
 async function doSave2() {
-  const t = S.table; if (!t) return;
+  const t = S.table; if (!t) return true;
   const cart = JSON.parse(JSON.stringify(S.cart));
   let error;
   if (!cart.length) {
@@ -394,6 +483,7 @@ async function doSave2() {
   }
   if (S.table === t) $('#saveState').textContent = error ? 'save failed' : 'saved';
   if (error) toast(error.message, true);
+  return !error;
 }
 $('#tRefresh').onclick = loadTables;
 
