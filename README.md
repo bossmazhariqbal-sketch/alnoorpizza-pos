@@ -11,7 +11,7 @@
 - Dashboard me "All users" ya kisi ek user ko chun kar uski sale dekhen. Excel download me Bills, By user aur Items summary sheets hoti hain.
 
 ## Order type aur Tables
-- Billing screen par **Take Away** ya **Delivery** chunen (Delivery me Note me address/phone likh den). Bill par type likha aata hai.
+- Billing screen par **Take Away** ya **Delivery** chunen. Delivery me Delivery Boy ka naam aur Address likhen; Take Away me Customer aur Note likhen. Receipt par bhi yehi labels dikhte hain.
 - **Tables** tab: table par click karen, items add/remove karte rahen (order Supabase me auto-save hota hai, dusre system par bhi nazar aata hai). Aakhir me **Final bill & print** dabayen, table free ho jati hai.
 - Admin > **Tables** me tables add/delete/rename karen.
 - **Preview bill / View** se receipt print se pehle dekh sakte hain.

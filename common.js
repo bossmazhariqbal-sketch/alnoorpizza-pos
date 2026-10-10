@@ -66,10 +66,15 @@ function receiptHTML(o) {
   const d = new Date(o.created_at);
   const date = d.toLocaleDateString('en-GB');
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const delivery = o.order_type === 'delivery';
+  const contactName = delivery && (!o.customer_name || o.customer_name === CFG.DEFAULT_CUSTOMER)
+    ? '-' : (o.customer_name || CFG.DEFAULT_CUSTOMER);
+  const detail = String(o.note || '').replace(/^Member \d+%\s*\|\s*/, '').replace(/^\[M\d+\]\s*/, '').trim();
   const type = o.order_type === 'delivery' ? 'DELIVERY'
     : o.order_type === 'dine_in' ? 'DINE-IN' + (o.table_name ? ' - ' + String(o.table_name).toUpperCase() : '')
     : 'TAKE AWAY';
   return `
+    <div class="receipt-content">
     ${CFG.LOGO ? `<img class="logo" src="${esc(CFG.LOGO)}" alt="${esc(CFG.SHOP_NAME)}">` : `<div class="c b big">${esc(CFG.SHOP_NAME)}</div>`}
     <div class="c">${esc(CFG.SHOP_ADDRESS)}</div>
     ${CFG.TAGLINE ? `<div class="c">${esc(CFG.TAGLINE)}</div>` : ''}
@@ -78,8 +83,8 @@ function receiptHTML(o) {
     <div class="r"><span>Cashier: ${esc(o.cashier_name || '-')}</span><span class="b">${date}</span></div>
     <div class="c b mid">${esc(type)}</div>
     <div class="r"><span>Bill ID: <b>${billId(o.order_no)}</b></span><span class="b">${time}</span></div>
-    <div>Customer: ${esc(o.customer_name || CFG.DEFAULT_CUSTOMER)}</div>
-    ${o.note ? `<div>Note: ${esc(o.note)}</div>` : ''}
+    <div>${delivery ? 'Delivery Boy' : 'Customer'}: ${esc(contactName)}</div>
+    ${detail ? `<div>${delivery ? 'Address' : 'Note'}: ${esc(detail)}</div>` : ''}
     <div class="hr"></div>
     <div class="th"><div>Descriptions</div><div class="n">Qty</div><div class="n">Rate</div><div class="n">Amnt</div></div>
     ${o.lines.map(l => `<div class="tr"><div class="b">${esc(l.name)}</div><div class="n">${l.qty}</div><div class="n">${fmt(l.price)}</div><div class="n">${fmt(l.qty * l.price)}</div></div>`).join('')}
@@ -90,10 +95,11 @@ function receiptHTML(o) {
     <div class="r"><span>Payment :</span><span>${esc(o.payment)}</span></div>
     <div class="hr"></div>
     ${CFG.QR_CODE ? `<div class="paymentQr"><img src="${esc(CFG.QR_CODE)}" alt="Online payment QR code"></div>` : ''}
-    <div class="c">${esc(CFG.FOOTER)}</div>`;
+    <div class="c">${esc(CFG.FOOTER)}</div>
+    </div>`;
 }
 function printReceipt(o) {
-  return printThermalReceipt(receiptHTML(o));
+  return printThermalReceipt(receiptHTML(o), 'receipt');
 }
 function kitchenReceiptHTML(o) {
   const d = new Date(o.created_at || Date.now());
@@ -110,13 +116,13 @@ function kitchenReceiptHTML(o) {
     <div class="hr"></div>`;
 }
 function printKitchenReceipt(o) {
-  return printThermalReceipt(kitchenReceiptHTML(o));
+  return printThermalReceipt(kitchenReceiptHTML(o), 'kitchen');
 }
-function printThermalReceipt(html) {
+function printThermalReceipt(html, kind = 'receipt') {
   let box = document.getElementById('receipt');
   if (!box) { box = document.createElement('div'); box.id = 'receipt'; document.body.appendChild(box); }
   const p58 = CFG.PAPER === '58mm';
-  box.className = p58 ? 'p58' : '';
+  box.className = `${p58 ? 'p58 ' : ''}${kind}`;
   let st = document.getElementById('pageSize');
   if (!st) { st = document.createElement('style'); st.id = 'pageSize'; document.head.appendChild(st); }
   st.textContent = `@media print{@page{size:${p58 ? '58mm' : '80mm'} auto;margin:0}#receipt{width:${p58 ? '52mm' : '68mm'};margin-left:0!important;margin-right:auto!important;transform:translateX(${p58 ? '-0.5mm' : '-1mm'})}}`;
