@@ -35,6 +35,7 @@
         </div>
         <nav class="tabs">
           <button data-tab="dash" class="on">Dashboard</button>
+          <button data-tab="sold-items">Sold items</button>
           <button data-tab="bills">Bills</button>
           <button data-tab="tables">Tables</button>
           <button data-tab="items">Items</button>
@@ -135,6 +136,37 @@
               </tr>
             </thead>
             <tbody id="ordersTbl"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SOLD ITEMS -->
+      <section id="tab-sold-items" class="hide">
+        <div class="card inline sold-items-filters">
+          <label for="soldFrom">From</label><input id="soldFrom" type="date">
+          <label for="soldTo">To</label><input id="soldTo" type="date">
+          <button id="soldGo">Show</button>
+          <button class="ghost" id="soldPdf">Download PDF (A4)</button>
+          <button class="ghost" id="soldThermal">Print Thermal</button>
+        </div>
+        <div class="stats" id="soldStats"></div>
+        <div class="card tblw" style="margin-top:14px">
+          <div class="panel-heading">
+            <div>
+              <h3>Items and deals sold</h3>
+              <small>Quantities are combined by sold name. Gross item value is before bill-level discounts.</small>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item / deal</th>
+                <th class="n">Bills</th>
+                <th class="n">Qty sold</th>
+                <th class="n">Gross item value</th>
+              </tr>
+            </thead>
+            <tbody id="soldItemsTbl"></tbody>
           </table>
         </div>
       </section>
@@ -301,8 +333,8 @@
   <script src="config.js"></script>
   <script src="common.js"></script>
   <script>
-    const S = { cats: [], items: [], deals: [], users: [], orders: [], list: [], range: '', me: null };
-    const TABS = ['dash', 'bills', 'tables', 'items', 'deals', 'users'];
+    const S = { cats: [], items: [], deals: [], users: [], orders: [], list: [], range: '', soldItems: [], soldRange: '', soldBillCount: 0, soldRequest: 0, me: null };
+    const TABS = ['dash', 'sold-items', 'bills', 'tables', 'items', 'deals', 'users'];
     document.title = CFG.SHOP_NAME + ' Admin';
     $('#shop').textContent = CFG.SHOP_NAME + ' Admin';
 
@@ -338,7 +370,12 @@
       document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
       TABS.forEach(x => $('#tab-' + x).classList.toggle('hide', x !== t));
     }
-    document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { showTab(b.dataset.tab); if (b.dataset.tab === 'dash') loadDash(); if (b.dataset.tab === 'bills' && !S.list.length) loadBills(); });
+    document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+      showTab(b.dataset.tab);
+      if (b.dataset.tab === 'dash') loadDash();
+      if (b.dataset.tab === 'sold-items') loadSoldItems();
+      if (b.dataset.tab === 'bills' && !S.list.length) loadBills();
+    });
 
     /* ---------- menu data ---------- */
     async function loadMenu(all = true) {
@@ -466,6 +503,7 @@
       $('#dDate').value = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
       $('#dMonth').value = `${n.getFullYear()}-${p(n.getMonth() + 1)}`;
       $('#dYear').value = n.getFullYear();
+      initSoldItems();
     }
     $('#dType').onchange = () => {
       const t = $('#dType').value;
@@ -600,6 +638,139 @@
     <td>${esc(o.cashier_name)}</td><td>${esc(o.customer_name)}</td><td>${esc(typeText(o))}</td><td>${esc(o.payment)}</td><td class="n"><b>${money(o.total)}</b></td>
     <td class="n"><button class="ghost" onclick="viewBill(S.orders[${i}])">View</button> <button class="ghost" onclick="printReceipt(S.orders[${i}])">Print</button></td></tr>`).join('');
     }
+    function initSoldItems() {
+      const today = new Date(), p = value => String(value).padStart(2, '0');
+      const date = `${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`;
+      $('#soldFrom').value = date;
+      $('#soldTo').value = date;
+    }
+    async function loadSoldItems() {
+      const request = ++S.soldRequest;
+      S.soldItems = [];
+      S.soldBillCount = 0;
+      S.soldRange = '';
+      $('#soldStats').innerHTML = '';
+      $('#soldItemsTbl').innerHTML = '';
+      const fromValue = $('#soldFrom').value, toValue = $('#soldTo').value;
+      if (!fromValue || !toValue) return toast('From aur To dates select karen', true);
+      const [fy, fm, fd] = fromValue.split('-').map(Number);
+      const [ty, tm, td] = toValue.split('-').map(Number);
+      const start = new Date(fy, fm - 1, fd), end = new Date(ty, tm - 1, td + 1);
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > new Date(ty, tm - 1, td)) {
+        return toast('Date range durust select karen', true);
+      }
+      let orders = [], offset = 0;
+      while (true) {
+        const { data, error } = await sb.from('orders').select('*')
+          .gte('created_at', start.toISOString()).lt('created_at', end.toISOString())
+          .order('created_at', { ascending: false }).range(offset, offset + 999);
+        if (request !== S.soldRequest) return;
+        if (error) return toast(error.message, true);
+        orders = orders.concat(data);
+        if (data.length < 1000) break;
+        offset += 1000;
+      }
+      const items = new Map();
+      orders.forEach(order => (order.lines || []).forEach(line => {
+        const name = String(line.name || '').trim();
+        if (!name) return;
+        const key = name.toLocaleLowerCase();
+        if (!items.has(key)) items.set(key, { name, qty: 0, value: 0, bills: new Set() });
+        const item = items.get(key);
+        item.qty += Number(line.qty) || 0;
+        item.value += (Number(line.qty) || 0) * (Number(line.price) || 0);
+        item.bills.add(order.id);
+      }));
+      S.soldItems = [...items.values()].map(item => ({ ...item, bills: item.bills.size }))
+        .sort((a, b) => b.qty - a.qty || b.value - a.value || a.name.localeCompare(b.name));
+      S.soldBillCount = orders.length;
+      S.soldRange = fromValue === toValue ? fromValue : `${fromValue} to ${toValue}`;
+      const qty = S.soldItems.reduce((sum, item) => sum + item.qty, 0);
+      const value = S.soldItems.reduce((sum, item) => sum + item.value, 0);
+      $('#soldStats').innerHTML = [
+        ['Bills', orders.length],
+        ['Different items / deals', S.soldItems.length],
+        ['Total units sold', fmt(qty)],
+        ['Gross item value', money(value)]
+      ].map(([label, total]) => `<div class="card stat"><span>${label}</span><b>${total}</b></div>`).join('');
+      $('#soldItemsTbl').innerHTML = S.soldItems.length ? S.soldItems.map(item => `<tr>
+        <td><b>${esc(item.name)}</b></td><td class="n">${fmt(item.bills)}</td>
+        <td class="n">${fmt(item.qty)}</td><td class="n"><b>${money(item.value)}</b></td></tr>`).join('')
+        : '<tr><td colspan="4" class="empty">Is date range mein koi items ya deals sale nahi huay.</td></tr>';
+    }
+    $('#soldGo').onclick = loadSoldItems;
+    $('#soldPdf').onclick = () => {
+      if (!S.soldItems.length) return toast('Download ke liye koi data nahi', true);
+      if (!window.jspdf || !window.jspdf.jsPDF) return toast('PDF library load nahi hui. Page refresh karen.', true);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      if (typeof doc.autoTable !== 'function') return toast('PDF table library load nahi hui. Page refresh karen.', true);
+      const qty = S.soldItems.reduce((sum, item) => sum + item.qty, 0);
+      const value = S.soldItems.reduce((sum, item) => sum + item.value, 0);
+      doc.setTextColor(36, 38, 43);
+      doc.setFontSize(18); doc.text(CFG.SHOP_NAME, 14, 17);
+      doc.setFontSize(11); doc.text('Sold items and deals report', 14, 25);
+      doc.setFontSize(9); doc.text(`Date: ${S.soldRange}`, 14, 32);
+      doc.text(`Bills: ${String(S.soldBillCount)}`, 14, 39);
+      doc.text(`Different items / deals: ${String(S.soldItems.length)}   |   Units sold: ${fmt(qty)}`, 14, 46);
+      doc.text(`Gross item value: ${money(value)}`, 14, 52);
+      doc.text('Gross item value is before bill-level discounts.', 14, 58);
+      doc.autoTable({
+        startY: 64,
+        head: [['Item / deal', 'Bills', 'Qty sold', 'Gross item value']],
+        body: S.soldItems.map(item => [item.name, String(item.bills), fmt(item.qty), money(item.value)]),
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [159, 38, 56] },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+      });
+      doc.save(`sold-items-${S.soldRange.replace(/[^a-z0-9-]/gi, '-')}.pdf`);
+    };
+    $('#soldThermal').onclick = () => {
+      if (!S.soldItems.length) return toast('Print ke liye koi data nahi', true);
+      const paper = CFG.PAPER === '58mm' ? '58mm' : '80mm';
+      const width = paper === '58mm' ? '44mm' : '60mm';
+      const amount = value => `${CFG.CURRENCY} ${fmt(value)}`;
+      const win = window.open('', '_blank');
+      if (!win) return toast('Print window block hui. Browser me pop-ups allow karen.', true);
+      const printDoc = win.document;
+      printDoc.title = 'Sold items report';
+      printDoc.head.replaceChildren(); printDoc.body.replaceChildren();
+      const style = printDoc.createElement('style');
+      style.textContent = `@page{size:${paper} auto;margin:0}*{box-sizing:border-box}body{width:${width};max-width:100%;margin:0 auto;padding:1mm;color:#111;font:8px/1.25 Arial,sans-serif}h1{text-align:center;font-size:11px;margin:0 0 2px}.center{text-align:center}hr{border:0;border-top:1px dashed #111;margin:4px 0}table{width:100%;border-collapse:collapse}th,td{padding:2px 0;border-bottom:1px dotted #aaa;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{font-size:7px}td{font-size:7px}.num{text-align:right;padding-left:2px;white-space:nowrap}.total{font-weight:bold}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}`;
+      printDoc.head.appendChild(style);
+      const add = (tag, parent, className, text) => {
+        const el = printDoc.createElement(tag);
+        if (className) el.className = className;
+        if (text != null) el.textContent = text;
+        parent.appendChild(el);
+        return el;
+      };
+      const body = printDoc.body;
+      add('h1', body, '', CFG.SHOP_NAME);
+      add('div', body, 'center', 'Sold items and deals');
+      add('div', body, 'center', `Date: ${S.soldRange}`);
+      add('hr', body, '');
+      const qty = S.soldItems.reduce((sum, item) => sum + item.qty, 0);
+      const value = S.soldItems.reduce((sum, item) => sum + item.value, 0);
+      add('div', body, '', `Bills: ${S.soldBillCount}`);
+      add('div', body, '', `Items: ${S.soldItems.length} | Units: ${fmt(qty)}`);
+      add('div', body, '', `Gross item value: ${amount(value)}`);
+      add('hr', body, '');
+      const table = add('table', body, ''), head = add('thead', table, ''), header = add('tr', head, '');
+      [['Item / deal', ''], ['Qty', 'num'], ['Value', 'num']].forEach(([label, cls]) => add('th', header, cls, label));
+      const tbody = add('tbody', table, '');
+      S.soldItems.forEach(item => {
+        const row = add('tr', tbody, '');
+        add('td', row, '', item.name);
+        add('td', row, 'num', fmt(item.qty));
+        add('td', row, 'num', amount(item.value));
+      });
+      add('hr', body, '');
+      add('div', body, 'total', `${fmt(qty)} units | ${amount(value)} gross item value`);
+      add('div', body, 'center', 'Gross item value is before bill-level discounts.');
+      setTimeout(() => { win.focus(); win.print(); }, 250);
+    };
     $('#dXls').onclick = () => {
       if (!S.orders.length) return toast('Download ke liye koi data nahi', true);
       const rows = S.orders.map(o => ({

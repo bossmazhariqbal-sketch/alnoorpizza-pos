@@ -2,13 +2,14 @@
 
 ## Pages
 - `/` (index.html)      → Billing screen. Har cashier apne username/password se login karta hai (4 systems = 4 users).
-- `/admin.html`         → Admin: Dashboard, Bills, Items, Deals, Users.
+- `/admin.html`         → Admin: Dashboard, Sold items, Bills, Items, Deals, Users.
 
 ## Kaise chalta hai
 - Admin panel > **Users** me har system ke liye user banayen (name, username, password).
 - Cashier billing screen par login kare. Bill ke upar Cashier ka naam (admin wala) aur Customer ka naam (khali ho to "Walk-in Customer") ata hai.
 - Har bill ka apna **Bill ID** hota hai (NM-000001 ...). Admin > Bills me ID likh kar bill dhoond len.
 - Dashboard me "All users" ya kisi ek user ko chun kar uski sale dekhen. Excel download me Bills, By user aur Items summary sheets hoti hain.
+- Admin > **Sold items** me date range chun kar har sold item/deal ki total quantity, bills ki tadaad aur gross item value dekhen; report A4 PDF me download ya configured thermal printer par print karen. Gross item value bill-level discount se pehle hoti hai.
 
 ## Order type aur Tables
 - Billing screen par **Take Away** ya **Delivery** chunen. Delivery me Delivery Boy ka naam aur Address likhen; Take Away me Customer aur Note likhen. Receipt par bhi yehi labels dikhte hain.
