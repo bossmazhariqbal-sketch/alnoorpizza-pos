@@ -3,6 +3,7 @@
 ## Pages
 - `/` (index.html)      → Billing screen. Har cashier apne username/password se login karta hai (4 systems = 4 users).
 - `/admin.html`         → Admin: Dashboard, Sold items, Bills, Items, Deals, Users.
+- Billing screen ke **Membership cards** tab me member ka naam, phone number aur card number add, edit aur delete karen.
 
 ## Kaise chalta hai
 - Admin panel > **Users** me har system ke liye user banayen (name, username, password).
@@ -26,6 +27,7 @@ Supabase project me ye SQL files run ho chuki hain (naye project ke liye is orde
 2. `supabase-v2.sql`
 3. `supabase-v3-tables.sql`
 4. `supabase-v4-kitchen-batches.sql` (existing project par additional dine-in kitchen orders ke liye)
+5. `supabase-v5-membership-cards.sql` (Membership cards tab ke liye; existing project par v4 ke baad chalayen)
 
 Open dine-in table ka bill `table_orders.lines` me jama hota rehta hai. Kitchen batches isi table-order row par track hote hain, aur table close karte waqt `orders.kitchen_batches` me copy hote hain. V4 migration dono columns add karti hai aur duplicate batch claims rokne ke liye RPC functions install karti hai. Is migration ko billing page deploy/use karne se pehle run karen.
 

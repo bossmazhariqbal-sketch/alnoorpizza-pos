@@ -40,6 +40,7 @@
           <button data-tab="billing" class="on">Billing</button>
           <button data-tab="tables">Tables</button>
           <button data-tab="bills">My bills</button>
+          <button data-tab="members">Membership cards</button>
           <button id="adminLink" class="hide">Admin panel</button>
           <button id="logout">Logout</button>
         </nav>
@@ -129,6 +130,32 @@
           </table>
         </div>
       </section>
+
+      <!-- MEMBERSHIP CARDS -->
+      <section id="tab-members" class="hide">
+        <div class="card stack">
+          <h3>Membership card holders</h3>
+          <form id="memberForm" class="inline">
+            <input id="memberName" placeholder="Member name" maxlength="120" required style="flex:1;min-width:180px">
+            <input id="memberPhone" type="tel" placeholder="Phone number" maxlength="30" required style="flex:1;min-width:180px">
+            <input id="memberCardNumber" placeholder="Card number" maxlength="80" required style="flex:1;min-width:180px">
+            <button id="memberSave" type="submit">Add member</button>
+            <button class="ghost hide" id="memberCancel" type="button">Cancel edit</button>
+            <button class="ghost" id="memberRefresh" type="button">Refresh</button>
+          </form>
+        </div>
+        <div class="card tblw" style="margin-top:14px">
+          <label for="memberSearch" style="display:block;margin-bottom:6px;font-weight:650">Search members</label>
+          <input id="memberSearch" type="search" placeholder="Search by name, phone number or card number"
+            aria-label="Search membership cards by name, phone number or card number" style="width:100%;margin-bottom:12px">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Phone number</th><th>Card number</th><th></th></tr>
+            </thead>
+            <tbody id="membersTbl"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -139,7 +166,7 @@
     const S = {
       cats: [], items: [], deals: [], cart: [], cat: 'all', search: '', me: null, bills: [], type: 'takeaway',
       table: null, hasRow: false, kitchenBatches: [], kitchenSending: false, member: false, stash: null,
-      tables: [], loading: false, timer: null, q: Promise.resolve()
+      tables: [], membershipCards: [], editingMemberId: null, loading: false, timer: null, q: Promise.resolve()
     };
     document.title = CFG.SHOP_NAME + ' - Billing';
     $('#loginShop').textContent = CFG.SHOP_NAME;
@@ -200,12 +227,13 @@
     $('#adminLink').onclick = () => location.href = 'admin.html';
 
     /* ---------- tabs ---------- */
-    const TABS = ['billing', 'tables', 'bills'];
+    const TABS = ['billing', 'tables', 'bills', 'members'];
     function switchTab(t) {
       document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
       TABS.forEach(x => $('#tab-' + x).classList.toggle('hide', x !== t));
       if (t === 'tables') loadTables();
       if (t === 'bills') loadBills();
+      if (t === 'members') loadMembershipCards();
     }
     document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
     setInterval(() => { if (S.me && document.visibilityState === 'visible' && !$('#tab-tables').classList.contains('hide') && !document.getElementById('modal')) quietly(loadTables); }, 10000);
@@ -543,6 +571,81 @@
     }
     $('#bGo').onclick = () => loadBills($('#bq').value.trim());
     $('#bAll').onclick = () => { $('#bq').value = ''; loadBills(); };
+
+    /* ---------- membership cards ---------- */
+    function renderMembershipCards() {
+      const query = $('#memberSearch').value.trim().toLowerCase();
+      const cards = S.membershipCards.filter(card =>
+        [card.name, card.phone_number, card.card_number].some(value => String(value || '').toLowerCase().includes(query))
+      );
+      $('#membersTbl').innerHTML = cards.length ? cards.map(card => `<tr>
+        <td>${esc(card.name)}</td><td>${esc(card.phone_number || '')}</td><td>${esc(card.card_number)}</td>
+        <td class="n"><button class="ghost" data-member-action="edit" data-id="${esc(card.id)}">Edit</button>
+        <button class="danger" data-member-action="delete" data-id="${esc(card.id)}">Delete</button></td></tr>`).join('')
+        : `<tr><td colspan="4" class="empty">${query ? 'Koi matching membership card nahi mila.' : 'Abhi koi membership card holder nahi hai.'}</td></tr>`;
+      $('#membersTbl').querySelectorAll('[data-member-action="edit"]').forEach(button => {
+        button.onclick = () => editMembershipCard(button.dataset.id);
+      });
+      $('#membersTbl').querySelectorAll('[data-member-action="delete"]').forEach(button => {
+        button.onclick = () => deleteMembershipCard(button.dataset.id);
+      });
+    }
+    async function loadMembershipCards() {
+      const { data, error } = await sb.from('membership_cards').select('id,name,phone_number,card_number').order('name').order('id');
+      if (error) return toast(error.message, true);
+      S.membershipCards = data;
+      renderMembershipCards();
+    }
+    function resetMembershipForm() {
+      $('#memberForm').reset();
+      S.editingMemberId = null;
+      $('#memberSave').textContent = 'Add member';
+      $('#memberCancel').classList.add('hide');
+    }
+    function editMembershipCard(id) {
+      const card = S.membershipCards.find(item => String(item.id) === String(id));
+      if (!card) return toast('Membership card nahi mila. Refresh karen.', true);
+      S.editingMemberId = String(card.id);
+      $('#memberName').value = card.name;
+      $('#memberPhone').value = card.phone_number || '';
+      $('#memberCardNumber').value = card.card_number;
+      $('#memberSave').textContent = 'Save changes';
+      $('#memberCancel').classList.remove('hide');
+      $('#memberName').focus();
+    }
+    async function deleteMembershipCard(id) {
+      const card = S.membershipCards.find(item => String(item.id) === String(id));
+      if (!card || !confirm(`${card.name} ka membership card delete karna hai?`)) return;
+      const { error } = await sb.from('membership_cards').delete().eq('id', id);
+      if (error) return toast(error.message, true);
+      toast('Membership card deleted');
+      if (S.editingMemberId === String(id)) resetMembershipForm();
+      await loadMembershipCards();
+    }
+    $('#memberForm').onsubmit = async event => {
+      event.preventDefault();
+      const name = $('#memberName').value.trim();
+      const phoneNumber = $('#memberPhone').value.trim();
+      const cardNumber = $('#memberCardNumber').value.trim();
+      if (!name || !phoneNumber || !cardNumber) return toast('Member ka naam, phone number aur card number likhen', true);
+      const button = $('#memberSave');
+      button.disabled = true;
+      try {
+        const request = S.editingMemberId
+          ? sb.from('membership_cards').update({ name, phone_number: phoneNumber, card_number: cardNumber, updated_at: new Date().toISOString() }).eq('id', S.editingMemberId)
+          : sb.from('membership_cards').insert({ name, phone_number: phoneNumber, card_number: cardNumber });
+        const { error } = await request;
+        if (error) return toast(error.message, true);
+        toast(S.editingMemberId ? 'Membership card updated' : 'Membership card added');
+        resetMembershipForm();
+        await loadMembershipCards();
+      } finally {
+        button.disabled = false;
+      }
+    };
+    $('#memberCancel').onclick = resetMembershipForm;
+    $('#memberRefresh').onclick = loadMembershipCards;
+    $('#memberSearch').oninput = renderMembershipCards;
 
     boot();
   </script>
