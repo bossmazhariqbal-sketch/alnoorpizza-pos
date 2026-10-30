@@ -95,7 +95,7 @@ function receiptHTML(o) {
     <div class="r"><span>Payment :</span><span>${esc(o.payment)}</span></div>
     <div class="hr"></div>
     ${CFG.QR_CODE ? `<div class="paymentQr"><img src="${esc(CFG.QR_CODE)}" alt="Online payment QR code"></div>` : ''}
-    <div class="c">${esc(CFG.FOOTER)}</div>
+    <div class="c receipt-footer">${CFG.FOOTER.split(/\r?\n/).map(line => /JazzCash:/i.test(line) ? `<b>${esc(line)}</b>` : esc(line)).join('\n')}</div>
     </div>`;
 }
 function printReceipt(o) {
@@ -106,13 +106,15 @@ function kitchenReceiptHTML(o) {
   const date = d.toLocaleDateString('en-GB');
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return `
-    ${CFG.LOGO ? `<img class="logo" src="${esc(CFG.LOGO)}" alt="${esc(CFG.SHOP_NAME)}">` : `<div class="c b big">${esc(CFG.SHOP_NAME)}</div>`}
     <div class="hr"></div>
     <div class="r"><span>Cashier: ${esc(o.cashier_name || '-')}</span><span class="b">${date}</span></div>
     <div class="c b big">${esc(String(o.table_name || '').toUpperCase())}</div>
     <div class="r"><span class="b mid">ORDER #${o.batch_no}</span><span class="b">${time}</span></div>
     <div class="hr"></div>
-    ${o.lines.map(l => `<div class="r"><span class="b">${esc(l.name)}</span><span class="b">× ${fmt(l.qty)}</span></div>`).join('')}
+    <div class="kitchen-lines">
+      <div class="th"><div>Item</div><div class="n">Qty</div><div class="n">Rate</div></div>
+      ${o.lines.map(l => `<div class="tr"><div class="b">${esc(l.name)}</div><div class="n">${fmt(l.qty)}</div><div class="n">${fmt(l.price)}</div></div>`).join('')}
+    </div>
     <div class="hr"></div>`;
 }
 function printKitchenReceipt(o) {

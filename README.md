@@ -15,6 +15,7 @@
 ## Order type aur Tables
 - Billing screen par **Take Away** ya **Delivery** chunen. Delivery me Delivery Boy ka naam aur Address likhen; Take Away me Customer aur Note likhen. Receipt par bhi yehi labels dikhte hain.
 - **Tables** tab: table par click karen, items add/remove karte rahen (order Supabase me auto-save hota hai, dusre system par bhi nazar aata hai). Aakhir me **Final bill & print** dabayen, table free ho jati hai.
+- **Send New Items to Kitchen** se print hone wali kitchen receipt par logo ke baghair item ki quantity aur per-item rate dikhte hain; amount aur total nahi dikhte.
 - Admin > **Tables** me tables add/delete/rename karen.
 - **Preview bill / View** se receipt print se pehle dekh sakte hain.
 

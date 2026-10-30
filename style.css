@@ -121,13 +121,16 @@ td.n{white-space:nowrap}
 .rc .hr{border-top:1px dashed #000;margin:5px 0}
 .rc .hr.solid{border-top:1px solid #000}
 .rc .th,.rc .tr{display:grid;grid-template-columns:1fr 24px 44px 52px;gap:3px;align-items:start}
+.rc .kitchen-lines .th,.rc .kitchen-lines .tr{grid-template-columns:minmax(0,1fr) 24px 52px}
 .rc .th{font-weight:700;border-bottom:1px solid #000;padding-bottom:2px}
 .rc .tr{padding:2px 0}
 .rc .n{text-align:right}
 .rc .receipt-content{line-height:1.15}
 .rc .receipt-content .hr{margin:2px 0}
+.rc .receipt-footer{white-space:pre-line}
 #receipt.p58 .rc,.paper.p58 .rc{font-size:11px}
 #receipt.p58 .th,#receipt.p58 .tr,.paper.p58 .th,.paper.p58 .tr{grid-template-columns:1fr 20px 38px 44px}
+#receipt.p58 .kitchen-lines .th,#receipt.p58 .kitchen-lines .tr,.paper.p58 .kitchen-lines .th,.paper.p58 .kitchen-lines .tr{grid-template-columns:minmax(0,1fr) 20px 44px}
 #receipt{display:none}
 @media print{
   body>*:not(#receipt){display:none!important}

@@ -11,7 +11,7 @@ window.CFG = {
   TAGLINE: "", // e.g. "Free Home Delivery" (receipt par address ke neeche)
   SHOP_PHONE: "0304-6006494 | 0347-1144404",
   FOOTER:
-    "Thank you for your order! We hope to see you again.",
+    "JazzCash: 03215702048 || Mubashir Ali\nThank you for your order!",
   CURRENCY: "Rs",
   BILL_PREFIX: "NM",  // Bill ID: NM-000001
   DEFAULT_CUSTOMER: "Walk-in Customer", // customer ka naam na likha jaye to ye ayega
