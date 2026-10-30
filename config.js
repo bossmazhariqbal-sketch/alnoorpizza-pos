@@ -7,11 +7,11 @@ window.CFG = {
   LOGO: "logo.png", // receipt ke top par; khali "" chor den to sirf naam print hoga
   QR_CODE: "payment-qr.png", // online payment QR image
   SHOP_NAME: "Noor Mahal Pizza",
-  SHOP_ADDRESS: "Noor Mahal Marque, Near Trafic Police Chowki Sacha Sauda,Farooqabad",
+  SHOP_ADDRESS: "Noor Mahal Marque, Near Sacha Sauda Chowki Stop.",
   TAGLINE: "", // e.g. "Free Home Delivery" (receipt par address ke neeche)
   SHOP_PHONE: "0304-6006494 | 0347-1144404",
   FOOTER:
-    "JazzCash: 03215702048 || Mubashir Ali\nThank you for your order!",
+    "Thank you for your order!",
   CURRENCY: "Rs",
   BILL_PREFIX: "NM",  // Bill ID: NM-000001
   DEFAULT_CUSTOMER: "Walk-in Customer", // customer ka naam na likha jaye to ye ayega
