@@ -7,7 +7,7 @@ window.CFG = {
   LOGO: "logo.png", // receipt ke top par; khali "" chor den to sirf naam print hoga
   QR_CODE: "payment-qr.png", // online payment QR image
   SHOP_NAME: "Noor Mahal Pizza",
-  SHOP_ADDRESS: "Sargodha Road, Sacha Sauda Farooqabad, Lahore, Pakistan",
+  SHOP_ADDRESS: "Noor Mahal Marque, Near Trafic Police Chowki Sacha Sauda,Farooqabad",
   TAGLINE: "", // e.g. "Free Home Delivery" (receipt par address ke neeche)
   SHOP_PHONE: "0304-6006494 | 0347-1144404",
   FOOTER:
