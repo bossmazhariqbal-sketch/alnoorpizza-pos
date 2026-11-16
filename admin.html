@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://vyrpymolxyhmumrwnxca.supabase.co" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preload" href="logo.png" as="image">
+  <link rel="preload" href="NM%20Logo.png" as="image">
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -31,7 +32,7 @@
     <header class="top admin-top">
       <div class="wrap">
         <div class="admin-brand">
-          <h1 id="shop"></h1><small>Restaurant management</small>
+          <img src="NM%20Logo.png" alt="Noor Mahal Pizza" class="header-logo">
         </div>
         <nav class="tabs">
           <button data-tab="dash" class="on">Dashboard</button>
@@ -336,7 +337,6 @@
     const S = { cats: [], items: [], deals: [], users: [], orders: [], list: [], range: '', soldItems: [], soldRange: '', soldBillCount: 0, soldRequest: 0, me: null };
     const TABS = ['dash', 'sold-items', 'bills', 'tables', 'items', 'deals', 'users'];
     document.title = CFG.SHOP_NAME + ' Admin';
-    $('#shop').textContent = CFG.SHOP_NAME + ' Admin';
 
     /* ---------- auth ---------- */
     async function boot() {

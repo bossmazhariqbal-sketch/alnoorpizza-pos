@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://vyrpymolxyhmumrwnxca.supabase.co" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preload" href="logo.png" as="image">
+  <link rel="preload" href="NM%20Logo.png" as="image">
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -32,7 +33,7 @@
     <header class="top">
       <div class="wrap">
         <div>
-          <img src="logo.png" alt="Noor Mahal Pizza" class="header-logo">
+          <img src="NM%20Logo.png" alt="Noor Mahal Pizza" class="header-logo">
           <h1 id="shop" class="hide"></h1><small id="addr" class="hide"></small>
         </div>
         <nav class="tabs">
@@ -261,16 +262,27 @@
     }
     function renderMenu() {
       $('#chips').innerHTML = `<button class="${S.cat === 'all' ? 'on' : ''}" onclick="S.cat='all';renderMenu()">All</button>` +
-        S.cats.map(c => `<button class="c ${S.cat == c.id ? 'on' : ''}" style="${catStyle(c.id)}" onclick="S.cat='${c.id}';renderMenu()">${esc(c.name)}</button>`).join('');
+        S.cats.map(c => `<button class="c ${S.cat == c.id ? 'on' : ''}" style="${menuColorStyle(c.id)}" onclick="S.cat='${c.id}';renderMenu()">${esc(c.name)}</button>`).join('');
       const q = S.search.trim().toLowerCase();
       const deals = S.deals.filter(d => d.active && (!q || (d.title + ' ' + (d.description || '')).toLowerCase().includes(q)));
       $('#dealsBox').innerHTML = ((S.cat === 'all' || q) && deals.length) ? `<div class="sec">Deals</div><div class="grid">` +
-        deals.map(d => `<button class="deal sm" onclick="addLine('${jsq(d.title)}',${d.price})"><h3>${esc(d.title)}</h3><small>${esc(d.description)}</small><div class="p">${money(d.price)}</div></button>`).join('') + '</div>' : '';
+        deals.map(d => {
+          const numberedTitle = String(d.title || '').trim().match(/^Deal\s+(\d+)$/i);
+          const title = numberedTitle
+            ? `<span class="deal-number-label">Deal <b>${numberedTitle[1]}</b></span>`
+            : esc(d.title);
+          const image = optimizedMenuImage(menuImageForDeal(d.title));
+          const imageHTML = image ? `<img class="deal-img" src="${image}" alt="" loading="lazy" decoding="async">` : '';
+          return `<button class="deal sm${image ? ' has-image' : ''}" style="${menuColorStyle(d.id, 2, 82)}" onclick="addLine('${jsq(d.title)}',${d.price})">${imageHTML}<span class="deal-info"><span class="deal-title">${title}</span><small>${esc(d.description)}</small><span class="p">${money(d.price)}</span></span></button>`;
+        }).join('') + '</div>' : '';
       const cats = (S.cat === 'all' || q) ? S.cats : S.cats.filter(c => c.id == S.cat);
       $('#itemsBox').innerHTML = cats.map(c => {
         const l = S.items.filter(i => i.category_id === c.id && i.active && (!q || (i.name + ' ' + c.name).toLowerCase().includes(q)));
         return l.length ? `<div class="sec"><b style="color:${PALETTE[c.id % PALETTE.length].bd}">${esc(c.name)}</b></div><div class="grid">` +
-          l.map(i => `<button class="tile" style="${catStyle(c.id)}" data-id="${i.id}">${esc(i.name)}<span>${money(i.price)}</span></button>`).join('') + '</div>' : '';
+          l.map(i => {
+            const image = optimizedMenuImage(menuImageForItem(i.name, c.name));
+            return `<button class="tile${image ? ' has-image' : ''}" style="${menuColorStyle(i.id, 1)}" data-id="${i.id}">${image ? `<img class="tile-img" src="${image}" alt="" loading="lazy" decoding="async">` : ''}<span class="tile-name">${esc(i.name)}</span><span class="tile-price">${money(i.price)}</span></button>`;
+          }).join('') + '</div>' : '';
       }).join('') || (q ? '' : '<div class="empty">Abhi koi item nahi hai. Admin panel se items add karen.</div>');
       if (q && !deals.length && !$('#itemsBox').innerHTML) $('#itemsBox').innerHTML = '<div class="empty">Koi item ya deal nahi mila.</div>';
       document.querySelectorAll('.tile').forEach(b => b.onclick = () => {

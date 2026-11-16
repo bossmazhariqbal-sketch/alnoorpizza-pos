@@ -22,6 +22,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const fmt = n => Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 });
 const money = n => CFG.CURRENCY + ' ' + fmt(n);
 const jsq = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+const optimizedMenuImage = path => path
+  ? path.replace(/^Images\//, 'Images/optimized/').replace(/\.[^.]+$/, '.webp')
+  : '';
 
 function toast(msg, err) {
   const t = document.createElement('div');
@@ -47,6 +50,75 @@ const PALETTE = [
   { bg: '#e0f4f5', bd: '#1a8a91', fg: '#0d4d51' }
 ];
 const catStyle = id => { const c = PALETTE[Math.abs(Number(id) || 0) % PALETTE.length]; return `--bg:${c.bg};--bd:${c.bd};--fg:${c.fg}`; };
+const menuColorStyle = (id, offset = 0, dealLightness = 82) => {
+  const hue = ((Math.abs(Number(id) || 0) + offset) * 137.508) % 360;
+  return `--bg:hsl(${hue},75%,94%);--bd:hsl(${hue},65%,48%);--fg:hsl(${hue},75%,24%);--deal-bg:hsl(${hue},75%,${dealLightness}%)`;
+};
+const menuImageForItem = (name, category = '') => {
+  const item = String(name || '').toLowerCase();
+  const group = String(category || '').toLowerCase();
+  const label = `${item} ${group}`;
+  if (/\bdelivery\b/.test(label) && /\bcharges?\b/.test(label)) return 'Images/menu/delivery-charges.png';
+  if (/\bextra toppings?\b/.test(group) || /\bextra toppings?\b/.test(item)) return 'Images/menu/extra-toping.jpg';
+  if (/\b(dips?|sauces?)\b/.test(label)) return 'Images/menu/dip-souce.webp';
+  if (/\bpasta\b/.test(group) || /\bpasta\b/.test(item)) {
+    return /\b(red|tomato|pizza|spicy)\b/.test(item) ? 'Images/menu/red-pasta.jpg' : 'Images/menu/white-pasta.jpg';
+  }
+  if (/\bpizza\b/.test(group) || /\bpizza\b/.test(item) || /\bextra topping\b/.test(group)) {
+    if (/\bpepperoni\b/.test(item)) return 'Images/menu/pizza-pepperoni.jpg';
+    if (/\b(tikka|tandoori)\b/.test(item)) return 'Images/menu/pizza-tikka.jpg';
+    if (/\b(chicken|fajita|supreme|kabab|kebab)\b/.test(item)) return 'Images/menu/pizza-chicken.jpg';
+    return 'Images/Pizza.png';
+  }
+  if (/\bfries\b/.test(group) || /\bfries\b/.test(item)) {
+    return /\b(loaded|cheese)\b/.test(item) ? 'Images/menu/loaded-fries.jpg' : 'Images/menu/fries.jpg';
+  }
+  if (/\b(cheese stick|cheese sticks)\b/.test(group) || /\b(cheese|mozzarella) sticks?\b/.test(item)) return 'Images/menu/cheese-sticks.jpg';
+  if (/\bbroast\b/.test(group) || /\bbroast\b/.test(item)) return 'Images/menu/fried-chicken.jpg';
+  if (/\bshawarma\b/.test(group) || /\bshawarma\b/.test(item)) return 'Images/menu/shawarma.jpg';
+  if (/\b(paratha roll|roll)\b/.test(group) || /\b(roll|wrap)\b/.test(item)) return 'Images/menu/chicken-wrap.jpg';
+  if (/\bsandwich\b/.test(group) || /\bsandwich\b/.test(item)) {
+    return /\bclub\b/.test(item) ? 'Images/menu/club-sandwich.jpg' : 'Images/menu/grilled-sandwich.jpg';
+  }
+  if (/\b(drinks?|beverages?|cola|pepsi|coke|7up|sting|water|juice|soda|gourmet)\b/.test(group) ||
+      /\b(drinks?|beverages?|cola|pepsi|coke|7up|sting|water|juice|soda|gourmet)\b/.test(item)) {
+    if (/\bwater\b/.test(label)) return 'Images/menu/water-image.webp';
+    if (/\bsting\b/.test(item)) return 'Images/menu/sting.webp';
+    if (/\bgourmet\b/.test(item) || /\bgourmet\b/.test(group)) return 'Images/menu/gourmet-drinks.png';
+    if (/\b345\s*ml\b/.test(item)) return 'Images/menu/345ml.png';
+    if (/\b500\s*ml\b/.test(item)) return 'Images/menu/500ml.png';
+    if (/\b1\s*(?:\.5)?\s*(?:l|liters?|litres?)\b|\b(jambo|jumbo)\b/.test(item)) return 'Images/menu/soft-drinks.jpg';
+    return 'Images/menu/soft-drinks.jpg';
+  }
+  if (/\b(frozen|sundae|ice cream|desserts?|deserts?|milkshake|shakes?)\b/.test(group) ||
+      /\b(sundae|ice cream|desserts?|deserts?|milkshake|shakes?)\b/.test(item)) return 'Images/menu/sundae.jpg';
+  if (/\bnuggets?\b/.test(item)) return 'Images/menu/nuggets.jpg';
+  if (/\bwings?\b/.test(item)) return 'Images/menu/hot-wings.jpg';
+  if (/\bcrispy\b/.test(group) || /\b(fried chicken|chicken pieces?)\b/.test(item)) return 'Images/menu/fried-chicken.jpg';
+  if (/\bburger\b/.test(group) || /\b(burger|hamburger)\b/.test(item)) {
+    const hasCheese = /\b(cheese|chesse|chese)\b/.test(item);
+    if (/\bpatty\b/.test(item) && hasCheese) return 'Images/menu/patty-chese-burger.jpg';
+    if (/\bzinger\b/.test(item) && hasCheese) return 'Images/menu/cheeseburger.jpg';
+    if (/\bpatty\b/.test(item)) return 'Images/menu/patty-burger.png';
+    if (/\bzinger\b/.test(item)) return 'Images/menu/zinger-burger.jpg';
+    if (hasCheese) return 'Images/menu/cheeseburger.jpg';
+    if (/\bdouble\b/.test(item)) return 'Images/menu/double-burger.jpg';
+    return 'Images/menu/cheeseburger.jpg';
+  }
+  return '';
+};
+const menuImageForDeal = title => {
+  const name = String(title || '').trim().toLowerCase();
+  const numberedDeal = name.match(/^deal\s+(\d+)$/);
+  if (numberedDeal) {
+    const number = Number(numberedDeal[1]);
+    if (number >= 1 && number <= 16) return `Images/deals/deal-${number}.png`;
+    return '';
+  }
+  if (name === 'jambo deal') return 'Images/deals/jambo-deal.png';
+  if (name === 'family deal') return 'Images/deals/family-deal.png';
+  return '';
+};
 
 /* Login: "ali" ya "ali@mail.com" dono chalte hain */
 const toEmail = u => { u = String(u).trim().toLowerCase(); return u.includes('@') ? u : `${u}@${CFG.LOGIN_DOMAIN}`; };

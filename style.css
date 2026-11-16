@@ -13,6 +13,8 @@
   --r:10px;
 }
 *{box-sizing:border-box}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none}
 html{scroll-padding-top:70px}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 h1,h2,h3{margin:0;line-height:1.2}
@@ -53,6 +55,10 @@ a{color:var(--basil)}
 .deal .p{font-size:21px;font-weight:800;color:var(--basil)}
 .deal.sm{min-height:144px;padding:13px 14px;text-align:left;font-weight:400}
 .deal.sm h3{font-size:17px;font-weight:750}
+.deal.sm .deal-title{font-size:19px;font-weight:850;line-height:1.2}
+.deal-number-label{display:inline-flex;align-items:center;gap:7px;padding:4px 9px;border:1px solid rgba(36,38,43,.2);border-radius:8px;background:rgba(255,255,255,.55)}
+.deal-number-label b{display:inline-grid;min-width:32px;height:32px;place-items:center;padding:0 7px;border-radius:6px;background:#fff;color:var(--ink);font-size:22px;font-weight:900;line-height:1}
+.deal-img{display:block;width:100%;height:130px;object-fit:contain;border-radius:0;background:#000}
 .deal.sm small{color:var(--muted);font-size:13px}
 .deal.sm .p{font-size:18px}
 
@@ -64,9 +70,23 @@ a{color:var(--basil)}
 .chips button.on,.chips button.c.on{background:var(--basil);color:#fff;border-color:var(--basil)}
 .chips button.on:hover,.chips button.c.on:hover{background:var(--basil-d);border-color:var(--basil-d)}
 .chips button.c{background:#fff;color:var(--ink);border:1px solid var(--line)}
+#chips button.c{background:var(--fg);color:#fff;border-color:var(--fg)}
+#chips button.c:hover{background:var(--fg);border-color:var(--fg);filter:brightness(.92)}
+#dealsBox .deal.sm{background:#fff;color:var(--ink);border:2px solid #D1D5DB}
+#dealsBox .deal.sm:hover{background:#fff;border-color:#D1D5DB;filter:brightness(.97)}
+#dealsBox .deal.sm.has-image{padding:0;gap:0;overflow:hidden}
+#dealsBox .deal-info{display:flex;width:100%;flex:1;flex-direction:column;align-items:center;gap:6px;padding:10px 12px;background:#fff}
+#dealsBox .deal.sm .deal-title{margin:0;text-align:center}
+#dealsBox .deal.sm small{color:var(--ink);text-align:center}
+#dealsBox .deal.sm .p{margin:0;color:var(--ink)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.tile{min-height:78px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;background:var(--bg,#fff);color:var(--fg,var(--ink));border:2px solid var(--bd,var(--line));font-size:15px;font-weight:650}
-.tile:hover{background:var(--bg,#fff);border-color:var(--bd,var(--line));box-shadow:0 3px 10px rgba(36,38,43,.12);transform:translateY(-1px)}
+.tile{min-height:78px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;background:#f3f4f6;color:var(--fg,var(--ink));border:2px solid #D1D5DB;font-size:15px;font-weight:650}
+.tile.has-image{min-height:166px;padding:0;justify-content:flex-start;overflow:hidden}
+.tile-img{display:block;width:100%;height:130px;object-fit:contain;border-radius:0;background:#111}
+.tile .tile-name{color:var(--fg,var(--ink));font-size:14px;line-height:1.2;font-weight:750}
+.tile .tile-price{color:var(--fg,var(--muted));font-size:13px;font-weight:700}
+.tile.has-image .tile-name,.tile.has-image .tile-price{padding:0 8px}
+.tile:hover{background:#f3f4f6;border-color:#D1D5DB;box-shadow:0 3px 10px rgba(36,38,43,.12);transform:translateY(-1px)}
 .tile span{color:var(--fg,var(--muted));font-size:14px;font-weight:700}
 .sec{margin:16px 0 8px;font-size:15px;color:var(--muted)}
 .sec b{color:var(--ink)!important;font-weight:700}
@@ -172,7 +192,6 @@ td.n{white-space:nowrap}
 
 .admin-top{box-shadow:0 2px 8px rgba(20,21,25,.12)}
 .admin-top .wrap{min-height:82px}
-.admin-brand small{display:block;margin-top:4px;color:rgba(255,255,255,.65);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
 .admin-top .tabs{gap:5px}
 .admin-top .tabs button{font-size:14px}
 .admin-main{padding-top:22px;padding-bottom:36px}
@@ -259,6 +278,12 @@ td.n{white-space:nowrap}
 .admin-main td .danger,.admin-main td .ghost{min-height:34px;padding:6px 10px;font-size:13px}
 .admin-main .card.stack>h3{font-size:16px}
 .admin-main .card.stack>small{line-height:1.5}
+
+@media (min-width:861px){
+  .bill{height:calc(100vh - 118px);height:calc(100dvh - 118px);min-height:0;align-items:stretch;overflow:hidden}
+  .bill>div:first-child,.bill>.cart{min-height:0;overflow-y:auto;overscroll-behavior-y:contain}
+  .bill>.cart{position:static}
+}
 
 @media (max-width:860px){
   .bill{grid-template-columns:1fr}
